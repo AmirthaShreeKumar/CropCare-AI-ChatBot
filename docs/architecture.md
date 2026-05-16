@@ -1,55 +1,67 @@
-# 🏗️ Architecture Design & Production Readiness
+# 🏗️ Architecture Design: Collaborative Multi-Agent System
 
-## 🖼️ System Architecture
-CropCare AI is built on a high-performance multi-agent framework. Below is the conceptual diagram of the system flow:
+CropCare AI is designed as a **Sequential Multi-Agent System**. Instead of relying on a single general-purpose AI model, it decomposes the complex agricultural diagnostic process into a series of specialized tasks, each handled by a dedicated "Expert Agent."
+
+---
+
+## 🖼️ System Architecture Diagram
+The diagram below illustrates how user data flows through the security layer into the multi-agent orchestration core.
 
 ![System Architecture](Architecture.png)
 
 ---
 
-## 📊 System Components
+## 🤖 The Multi-Agent Orchestration Core
+The heart of the system is `src/orchestrator.py`, which manages the state and handoffs between the following agents:
 
-### 1. Multi-Agent Pipeline
-The core logic resides in `src/orchestrator.py`, which coordinates a sequential chain of specialized AI agents:
-*   **Vision Agent**: Performs crop detection and disease symptom identification.
-*   **Symptom Agent**: Generates a detailed natural language description of observed issues.
-*   **Disease Agent**: Matches symptoms to a specific disease using RAG and local knowledge.
-*   **Treatment Agent**: Recommends chemical and organic treatment protocols.
-*   **Regional Agent**: Injects geographical context (weather, soil, and local alerts).
+### 1. Vision Agent (`src/vision_agent.py`)
+*   **Role**: Visual Perception Specialist.
+*   **Action**: Analyzes uploaded images using Gemini Pro Vision. It identifies the crop type and locates specific leaf anomalies or discoloration patterns.
+*   **Output**: Structured visual markers.
 
-### 2. Logging & Observability
-*   **Centralized Logging**: Managed via `src/logger.py`.
-*   **Audit Trails**: Every login, diagnostic attempt, and safety violation is logged to `debug.log` for monitoring and debugging.
+### 2. Symptom Agent (`src/symptom_agent.py`)
+*   **Role**: Diagnostic Reporter.
+*   **Action**: Takes the raw visual markers and translates them into a professional agricultural symptom report (e.g., "Interveinal chlorosis with necrotic spotting").
+*   **Output**: Technical symptom description.
 
-### 3. Performance & Caching
-*   **Streamlit Caching**: `st.cache_data` is used for RAG index loading and metadata generation to ensure sub-second response times for repeat queries.
-*   **Voice Optimization**: Audio generation (TTS) is lazy-loaded to save processing bandwidth.
+### 3. Disease Agent (`src/disease_agent.py`)
+*   **Role**: Diagnostic Pathologist.
+*   **Action**: Uses **Retrieval-Augmented Generation (RAG)** to query the internal `disease_knowledge_base`. It matches the technical symptoms against thousands of documented crop diseases.
+*   **Output**: Confirmed diagnosis and confidence level.
+
+### 4. Treatment Agent (`src/treatment_agent.py`)
+*   **Role**: Agronomist & Pharmacist.
+*   **Action**: Generates a tiered treatment plan, providing both **organic (biological)** and **chemical** solutions for the identified disease.
+*   **Output**: Step-by-step recovery protocol.
+
+### 5. Regional Agent (`src/regional_agent.py`)
+*   **Role**: Local Field Consultant.
+*   **Action**: Injects geographical context by querying the `regional_knowledge_base`. It adapts the treatment based on local weather conditions and provides preventive measures specific to the user's region.
+*   **Output**: Localized advice and preventive strategies.
 
 ---
 
-## 🔄 Data Flow
-1.  **Input Phase**: User submits Image, Text, or Voice data.
-2.  **Security Layer**: Rate Limiter and Safety Interceptor validate the request.
-3.  **Analysis Phase**: The Orchestrator triggers the agent pipeline in sequence.
-4.  **Synthesis Phase**: Results are validated against Pydantic schemas.
-5.  **Persistence Phase**: Conversations are saved to PostgreSQL.
-6.  **Output Phase**: Final response is delivered via UI and Voice.
+## 🔄 Data Pipeline Flow
+1.  **Safety Interception**: Request is sanitized by `src/safety.py`.
+2.  **State Initialization**: Orchestrator creates a shared state object.
+3.  **Sequential Execution**: Agents run in order (Vision → Symptom → Disease → Treatment → Regional). Each agent enriches the shared state with its expert findings.
+4.  **Final Synthesis**: The Orchestrator merges all agent outputs into a final, user-friendly summary.
+5.  **Persistence**: The entire interaction is saved to the PostgreSQL database for future reference.
 
 ---
 
 ## 🛡️ Production Readiness Audit (12 Pillars)
+While the agents provide the intelligence, the following 12 pillars provide the **stability and security**:
 
-The following controls have been implemented to ensure the system is production-grade:
-
-1.  **Deterministic Safety Checks**: Keyword and LLM-based filtering in `src/safety.py`.
-2.  **Async AI Clients**: Modular factory pattern for non-blocking AI calls.
-3.  **Schema Validation**: Strict data integrity using **Pydantic** models.
-4.  **Shared Secret Gatekeeping**: `APP_SECRET` required for new user registration.
-5.  **Generic Error Messages**: User-facing exceptions are sanitized to hide internal logic.
-6.  **Persistent DB State**: PostgreSQL integration for reliable chat history.
-7.  **Agent Loop Safeguards**: `MAX_STEPS` limit to prevent logic recursion.
-8.  **Context Window Management**: History slicing and summarization to manage token budgets.
-9.  **Per-User Rate Limiting**: sliding-window 10 requests/min limit in `src/rate_limiter.py`.
-10. **SQL Sanitization**: 100% parameterized queries via SQLAlchemy.
-11. **Media Lifecycle Cleanup**: Automatic purging of temp files via `src/cleanup.py`.
-12. **Singleton/Factory Patterns**: Efficient resource management in `src/factory.py`.
+1.  **Deterministic Safety**: Keywords + LLM-based filtering.
+2.  **Async AI Clients**: Non-blocking client initialization.
+3.  **Schema Validation**: Pydantic models for all data exchange.
+4.  **App Access Gate**: `APP_SECRET` required for registration.
+5.  **Generic Error Handling**: Sanitized user-facing exceptions.
+6.  **Persistent State**: PostgreSQL via SQLAlchemy.
+7.  **Agent Loop Guard**: `MAX_STEPS` prevents infinite reasoning loops.
+8.  **Context Management**: Automatic history slicing and summarization.
+9.  **Rate Limiting**: Sliding-window 10 requests/min per user.
+10. **SQL Sanitization**: 100% parameterized queries.
+11. **Media Cleanup**: Automated purging of temp files.
+12. **Singleton/Factory**: Centralized resource management in `src/factory.py`.

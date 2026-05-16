@@ -1,72 +1,58 @@
-# 🌱 CropCare AI: Multi-Agent Agricultural Assistant
+# 🌱 CropCare AI: Intelligent Multi-Agent Agricultural Assistant
 
-**A production-hardened multi-agent AI system powered by Gemini and Groq that provides real-time plant disease diagnosis, treatment recommendations, and localized agricultural advice.**
+**CropCare AI is a state-of-the-art multi-agent system that transforms how plant diseases are diagnosed. It orchestrates specialized AI agents to provide expert-level diagnostic reasoning, localized advice, and treatment protocols.**
+
+---
+
+## 🤖 The Multi-Agent Advantage
+Unlike simple chatbots, CropCare AI uses a **Collaborative Agent Framework**. Each step of the diagnosis is handled by a specialized expert:
+
+*   **👁️ Vision Agent**: A computer-vision specialist that identifies crop species and detects leaf anomalies.
+*   **🩺 Symptom Agent**: A diagnostic reporter that translates visual signs into clinical plant symptoms.
+*   **🔬 Disease Agent**: A reasoning engine that matches symptoms to known diseases using a specialized knowledge base (RAG).
+*   **💊 Treatment Agent**: An agronomist that generates precise organic and chemical treatment plans.
+*   **🌍 Regional Agent**: A localized consultant that adapts advice to your specific weather and soil conditions.
 
 ---
 
 ## 🚀 Key Features
 
-*   **🔒 Secure Access**: Account creation is gated by a mandatory **App Access Key** to prevent unauthorized usage.
-*   **⏳ Rate Limiting**: Built-in protection (10 requests/min per user) to manage API costs and prevent abuse.
-*   **🔍 Sequential Multi-Agent Pipeline**: Specialized agents for Vision, Symptoms, Diagnosis, Treatment, and Regional Advice.
-*   **🤖 Hybrid AI Intelligence**: Leverages **Google Gemini** for visual reasoning and **Groq Llama 3** for lightning-fast text generation.
-*   **🎙️ Multilingual Voice Interface**: Supports **English**, **Hindi**, and **Tamil** with real-time transcription and TTS.
-*   **💬 Professional Chat Management**: Isolated, persistent chat history for every user with secure session management.
+*   **🧠 Intelligent Orchestration**: Sequential multi-agent pipeline for high-accuracy diagnostics.
+*   **🎙️ Multilingual Voice Interface**: Full support for **English**, **Hindi**, and **Tamil** with real-time TTS.
+*   **🔒 Production-Grade Security**: Gated sign-ups, Bcrypt encryption, and full session isolation.
+*   **⏳ Resource Protection**: Built-in per-user rate limiting (10 req/min) to prevent API abuse.
+*   **💬 Persistent Memory**: Securely stores and manages your diagnostic history in PostgreSQL.
 
 ---
 
 ## 🛠️ Tech Stack
 
-*   **Frontend**: Streamlit
-*   **Intelligence**: Google Gemini API & Groq (Llama 3, Whisper v3)
+*   **Intelligence**: Google Gemini (Vision) & Groq Llama 3 (Reasoning)
+*   **Orchestration**: Custom sequential agent controller
+*   **Frontend**: Streamlit (Premium UI with Glassmorphism)
 *   **Database**: PostgreSQL (SQLAlchemy)
-*   **Security**: Bcrypt (Password Hashing), Shared Secret Gatekeeping
-*   **Voice**: gTTS, audio-recorder-streamlit
+*   **Security**: Bcrypt Hashing & Shared Secret Gatekeeping
 
 ---
 
 ## ⚙️ Installation & Setup
 
-1.  **Clone the Repository**:
+1.  **Clone & Install**:
     ```bash
     git clone https://github.com/AmirthaShreeKumar/CropCare-AI-ChatBot.git
     cd CropCare-AI-ChatBot
-    ```
-
-2.  **Install Dependencies**:
-    ```bash
     pip install -r requirements.txt
     ```
 
-3.  **Configure Environment Variables**:
-    Create a `.env` file in the root directory:
-    ```env
-    # AI Keys
-    GOOGLE_API_KEY=your_gemini_key
-    GROQ_API_KEY=your_groq_key
+2.  **Configure Environment**:
+    Create a `.env` file with your `GOOGLE_API_KEY`, `GROQ_API_KEY`, `DATABASE_URL`, and `APP_SECRET`.
 
-    # Database (PostgreSQL)
-    DB_USER=postgres
-    DB_PASSWORD=your_password
-    DB_HOST=localhost
-    DB_PORT=5432
-    DB_NAME=cropcare
-
-    # Security
-    APP_SECRET=cropcare2024  # Shared key required for new sign-ups
-    ```
-
-4.  **Run the Application**:
+3.  **Run**:
     ```bash
     streamlit run app.py
     ```
 
 ---
 
-## 🛡️ Security & Production Readiness
-This project has been hardened for production deployment. For a detailed breakdown of the 12-pillar audit (including Caching, Logging, and Rate Limiting), please refer to the **[Architecture Documentation](docs/architecture.md)**.
-
-*   **Passwords**: Encrypted using salted Bcrypt hashes.
-*   **Rate Limiting**: Users are limited to 10 diagnostic requests per minute.
-*   **Session Isolation**: Chat history is strictly isolated per user; switching accounts clears all temporary session data.
-*   **Sanitization**: All database queries are parameterized to prevent SQL injection.
+## 🛡️ Production Readiness & Architecture
+For a deep dive into the **Multi-Agent Orchestration** logic and our **12-Pillar Security Audit**, visit the **[Architecture Documentation](docs/architecture.md)**.
