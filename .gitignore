@@ -221,6 +221,11 @@ chroma_db/
 *.jpg
 *.jpeg
 
+# Do NOT ignore sample images
+!Sample_image_inputs/**
+!disease_knowledge_base/**
+!regional_knowledge_base/**
+
 # Model weights
 *.h5
 *.keras

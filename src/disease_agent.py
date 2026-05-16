@@ -8,16 +8,17 @@ from src.disease_rag import (
     get_treatment_for_disease,
     get_prevention_methods
 )
+from src.schemas import DiseaseDiagnosis
 import os
-from langchain_groq import ChatGroq
 
-llm = ChatGroq(
-    groq_api_key=os.getenv("GROQ_API_KEY"),
-    model_name="llama-3.1-8b-instant"
-)
+from src.factory import AIClientFactory
+
+llm = AIClientFactory.get_llm()
 
 
 def diagnose_disease(crop_name, symptoms):
+    structured_llm = llm.with_structured_output(DiseaseDiagnosis)
+
     """
     Enhanced disease diagnosis using LLM + RAG knowledge base
 
@@ -47,21 +48,13 @@ Symptoms: {symptoms}
 
 Diagnose ONLY from this PlantVillage list:
 {classes_list}
-
-Return JSON with these exact fields:
-{{
-  "disease_name": "exact disease name from list",
-  "confidence": "high/medium/low",
-  "reasoning": "brief explanation"
-}}
 """
 
     try:
-        result = llm.invoke(prompt)
-        diagnosis = safe_json_parse(result.content)
+        diagnosis = structured_llm.invoke(prompt)
 
-        if diagnosis and diagnosis.get("disease_name"):
-            disease_name = diagnosis["disease_name"]
+        if diagnosis and diagnosis.disease_name:
+            disease_name = diagnosis.disease_name
 
             # Get detailed information from RAG knowledge base
             detailed_info = get_disease_info(disease_name, k=1)
@@ -69,16 +62,11 @@ Return JSON with these exact fields:
             prevention = get_prevention_methods(disease_name, k=1)
 
             # Enhance the diagnosis with RAG data
-            enhanced_diagnosis = {
-                "disease_name": disease_name,
-                "confidence": diagnosis.get("confidence", "medium"),
-                "reasoning": diagnosis.get("reasoning", ""),
-                "detailed_info": detailed_info[0] if detailed_info else "",
-                "treatments": treatments[0] if treatments else "",
-                "prevention": prevention if prevention else ""
-            }
+            diagnosis.detailed_info = detailed_info[0] if detailed_info else ""
+            diagnosis.treatments = treatments[0] if treatments else ""
+            diagnosis.prevention = prevention if prevention else ""
 
-            return enhanced_diagnosis
+            return diagnosis.dict()
 
     except Exception as e:
         print(f"Disease diagnosis error: {e}")

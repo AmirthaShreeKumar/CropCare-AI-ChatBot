@@ -1,111 +1,55 @@
-# 🧠 CropCare AI Architecture Documentation
+# 🏗️ Architecture Design & Production Readiness
 
-This document provides a deep dive into the internal architecture of the CropCare AI system, explaining the data flow for different input types and the multi-agent orchestration.
+## 🖼️ System Architecture
+CropCare AI is built on a high-performance multi-agent framework. Below is the conceptual diagram of the system flow:
 
----
-
-## 🎨 System Architecture Overview
-
-The system is built on a **Modular Multi-Agent Architecture** that separates visual perception from logical reasoning and specialized knowledge retrieval.
-
-```mermaid
-graph TD
-    subgraph Inputs
-        Img[📷 Image]
-        Voice[🎙️ Voice]
-        Txt[📝 Text]
-    end
-
-    subgraph Frontend Layer
-        Img --> UI[Streamlit UI]
-        Voice -->|Groq Whisper| Transcription[Text Transcription]
-        Transcription --> UI
-        Txt --> UI
-    end
-    
-    subgraph Orchestration Layer
-        UI -->|Routing Logic| Orchestrator[Orchestrator Agent]
-    end
-    
-    subgraph Multi-Agent Intelligence Layer
-        Orchestrator -->|Image Input| Vision[Vision Agent - Gemini]
-        Vision -->|Crop Identified| Symptom[Symptom Agent - Gemini]
-        Symptom -->|Symptoms Described| Disease[Disease Agent - Groq]
-        
-        Orchestrator -->|General Text Input| Chat[Chatbot Logic - Groq]
-        Orchestrator -->|Location Mentioned| Regional[Regional Agent - Groq]
-        
-        Disease --> Treatment[Treatment Agent - Groq]
-    end
-    
-    subgraph Knowledge & Data Layer
-        Disease -->|RAG| ChromaDB[(ChromaDB Vector Store)]
-        Treatment -->|RAG| ChromaDB
-        Regional -->|RAG| ChromaDB
-        
-        UI -->|Storage| Postgres[(PostgreSQL Database)]
-    end
-    
-    subgraph Final Response
-        Treatment --> Final[Formatted UI Response]
-        Chat --> Final
-        Regional --> Final
-        Final -->|If Voice Input| TTS[Google gTTS Audio]
-    end
-```
+![System Architecture](Architecture.png)
 
 ---
 
-## 🧑‍💻 The Multi-Agent System
+## 📊 System Components
 
-### 1. Vision Agent (Google Gemini 2.5 Flash)
-*   **Role**: Primary visual identifier.
-*   **Responsibility**: Analyzes the raw image to determine if a supported crop is present.
-*   **Output**: Crop name and detection confidence.
+### 1. Multi-Agent Pipeline
+The core logic resides in `src/orchestrator.py`, which coordinates a sequential chain of specialized AI agents:
+*   **Vision Agent**: Performs crop detection and disease symptom identification.
+*   **Symptom Agent**: Generates a detailed natural language description of observed issues.
+*   **Disease Agent**: Matches symptoms to a specific disease using RAG and local knowledge.
+*   **Treatment Agent**: Recommends chemical and organic treatment protocols.
+*   **Regional Agent**: Injects geographical context (weather, soil, and local alerts).
 
-### 2. Symptom Agent (Google Gemini 2.5 Flash)
-*   **Role**: Visual diagnostician.
-*   **Responsibility**: Performs fine-grained analysis of leaf health, looking for lesions, spots, or discoloration.
-*   **Output**: A descriptive text summary of the visual symptoms.
+### 2. Logging & Observability
+*   **Centralized Logging**: Managed via `src/logger.py`.
+*   **Audit Trails**: Every login, diagnostic attempt, and safety violation is logged to `debug.log` for monitoring and debugging.
 
-### 3. Disease Agent (Groq Llama 3.1 8B)
-*   **Role**: Diagnostic brain.
-*   **Responsibility**: Takes the crop name and symptoms, then queries the **Disease Knowledge Base (RAG)** to find a match in the PlantVillage dataset.
-*   **Output**: Final disease diagnosis with reasoning.
-
-### 4. Treatment Agent (Groq Llama 3.1 8B)
-*   **Role**: Agricultural expert.
-*   **Responsibility**: Fetches verified treatment protocols (organic and chemical) and safety precautions from the knowledge base.
-*   **Output**: Actionable treatment steps.
-
-### 5. Regional Agent (Groq Llama 3.1 8B)
-*   **Role**: Localized advisor.
-*   **Responsibility**: Triggered when a location is detected. It uses the **Regional Knowledge Base** to provide soil and climate-specific advice.
-*   **Output**: Localized crop recommendations and alerts.
+### 3. Performance & Caching
+*   **Streamlit Caching**: `st.cache_data` is used for RAG index loading and metadata generation to ensure sub-second response times for repeat queries.
+*   **Voice Optimization**: Audio generation (TTS) is lazy-loaded to save processing bandwidth.
 
 ---
 
-## 🔄 Input-Specific Data Flows
-
-### 📷 The Image Pipeline
-1.  User uploads an image.
-2.  `Orchestrator` triggers `Vision Agent` -> `Symptom Agent` -> `Disease Agent`.
-3.  `Disease Agent` performs a similarity search in **ChromaDB**.
-4.  `Treatment Agent` generates the final plan.
-
-### 🎙️ The Voice Pipeline
-1.  Audio is captured in the UI.
-2.  **Groq Whisper v3** transcribes the audio based on the user's selected language.
-3.  The transcription is routed either to the `Regional Agent` (if a location is found) or the `General Chat` logic.
-4.  **Google gTTS** converts the final response back to audio.
-
-### 📝 The Text Pipeline
-1.  User types a query.
-2.  `Regional Agent` scans for geographical keywords.
-3.  If agricultural, it pulls from `Regional RAG`.
-4.  Otherwise, the `Groq Llama` model responds using conversation history.
+## 🔄 Data Flow
+1.  **Input Phase**: User submits Image, Text, or Voice data.
+2.  **Security Layer**: Rate Limiter and Safety Interceptor validate the request.
+3.  **Analysis Phase**: The Orchestrator triggers the agent pipeline in sequence.
+4.  **Synthesis Phase**: Results are validated against Pydantic schemas.
+5.  **Persistence Phase**: Conversations are saved to PostgreSQL.
+6.  **Output Phase**: Final response is delivered via UI and Voice.
 
 ---
 
-## 🗄️ Knowledge Base (RAG)
-The system uses **Retrieval-Augmented Generation** to prevent hallucinations. All scientific data about diseases and regional statistics are stored as vector embeddings in **ChromaDB**, ensuring that every answer is grounded in real agricultural data.
+## 🛡️ Production Readiness Audit (12 Pillars)
+
+The following controls have been implemented to ensure the system is production-grade:
+
+1.  **Deterministic Safety Checks**: Keyword and LLM-based filtering in `src/safety.py`.
+2.  **Async AI Clients**: Modular factory pattern for non-blocking AI calls.
+3.  **Schema Validation**: Strict data integrity using **Pydantic** models.
+4.  **Shared Secret Gatekeeping**: `APP_SECRET` required for new user registration.
+5.  **Generic Error Messages**: User-facing exceptions are sanitized to hide internal logic.
+6.  **Persistent DB State**: PostgreSQL integration for reliable chat history.
+7.  **Agent Loop Safeguards**: `MAX_STEPS` limit to prevent logic recursion.
+8.  **Context Window Management**: History slicing and summarization to manage token budgets.
+9.  **Per-User Rate Limiting**: sliding-window 10 requests/min limit in `src/rate_limiter.py`.
+10. **SQL Sanitization**: 100% parameterized queries via SQLAlchemy.
+11. **Media Lifecycle Cleanup**: Automatic purging of temp files via `src/cleanup.py`.
+12. **Singleton/Factory Patterns**: Efficient resource management in `src/factory.py`.

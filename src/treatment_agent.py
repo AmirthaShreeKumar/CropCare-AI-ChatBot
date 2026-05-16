@@ -3,14 +3,14 @@
 from src.utils_json_parsing import safe_json_parse
 from src.disease_rag import get_treatment_for_disease, get_prevention_methods
 import os
-from langchain_groq import ChatGroq
+from src.schemas import TreatmentPlan
+from src.factory import AIClientFactory
 
-llm = ChatGroq(
-    groq_api_key=os.getenv("GROQ_API_KEY"),
-    model_name="llama-3.1-8b-instant"
-)
+llm = AIClientFactory.get_llm()
+
 
 def give_treatment(crop_name, disease_name):
+    structured_llm = llm.with_structured_output(TreatmentPlan)
     """
     Enhanced treatment recommendations using RAG knowledge base
 
@@ -44,28 +44,13 @@ Consider:
 - Safety precautions for farmers
 - Prevention methods
 - Step-by-step treatment process
-
-Return JSON with these exact fields:
-{{
-  "treatment_steps": [
-    "Step 1: Description of first treatment action",
-    "Step 2: Description of second treatment action",
-    "etc..."
-  ],
-  "safety_precautions": [
-    "Safety precaution 1",
-    "Safety precaution 2",
-    "etc..."
-  ]
-}}
 """
 
     try:
-        result = llm.invoke(prompt)
-        treatment_data = safe_json_parse(result.content)
+        treatment_data = structured_llm.invoke(prompt)
 
         if treatment_data:
-            return treatment_data
+            return treatment_data.dict()
 
     except Exception as e:
         print(f"Treatment recommendation error: {e}")
