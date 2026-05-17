@@ -41,7 +41,7 @@ CropCare AI solves this by separating:
 ---
 
 # 🧠 Full Hybrid Pipeline Architecture
-<<<<<<< HEAD
+
 ![System Architecture](Architecture.svg)
 =======
 
