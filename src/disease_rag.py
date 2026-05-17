@@ -364,19 +364,23 @@ def get_disease_info(disease_name, k=1):
         print(f"Error retrieving disease info: {e}")
         return []
 
-def search_disease_by_symptoms(symptoms_description, k=3):
+def search_disease_by_symptoms(symptoms_description, crop_name=None, k=3):
     """
-    Search for diseases based on symptom description
+    Search for diseases based on symptom description and optional crop name filter
 
     Args:
         symptoms_description: Description of symptoms
+        crop_name: Optional name of the crop to target the search
         k: Number of results to return
 
     Returns:
         List of matching disease information
     """
     try:
-        query = f"Disease with symptoms: {symptoms_description}"
+        if crop_name:
+            query = f"{crop_name} disease with symptoms: {symptoms_description}"
+        else:
+            query = f"Disease with symptoms: {symptoms_description}"
         results = vectordb.similarity_search(query, k=k)
         return [doc.page_content for doc in results]
     except Exception as e:

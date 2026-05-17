@@ -1,7 +1,6 @@
 import google.generativeai as genai
 from PIL import Image
 from src.utils_json_parsing import safe_json_parse
-from src.plant_village import PLANTVILLAGE_CLASSES
 import os
 import streamlit as st
 import io
@@ -15,21 +14,37 @@ model = AIClientFactory.get_gemini_model()
 def _detect_crop_cached(image_bytes):
     """Internal cached function using image bytes as the key"""
     img = Image.open(io.BytesIO(image_bytes))
-    dataset_classes = "\n".join(PLANTVILLAGE_CLASSES)
     
     prompt = f"""
     You are an expert plant pathologist and botanist.
-    Analyze the image of the leaf very carefully. First, observe the leaf shape, margin (edges), vein patterns, and texture.
-    Second, observe any disease symptoms (like spots, lesions, discoloration).
+    Analyze the image carefully.
     
-    Here is the exact dataset of crops AND their possible diseases:
-    {dataset_classes}
+    CRITICAL INSTRUCTION: If the image DOES NOT contain a plant, leaf, or crop (for example, if it is an animal, a person, or a random object), you MUST return "N/A" for the crop name. Do not attempt to guess a crop if there is no plant material.
+
+    If it IS a plant leaf, observe the leaf shape, margin, vein patterns, and any disease symptoms.
     
-    Use BOTH the leaf shape AND the specific disease symptoms you see to deduce which crop this is. 
-    Return ONLY JSON like:
+    Here is the list of supported crops:
+    - Apple
+    - Blueberry
+    - Cherry
+    - Corn
+    - Grape
+    - Orange
+    - Peach
+    - Pepper
+    - Potato
+    - Raspberry
+    - Soybean
+    - Squash
+    - Strawberry
+    - Tomato
+
+    Deduce which of these crops the leaf belongs to.
+    
+    Return ONLY JSON matching this format:
     {{
-      "reasoning": "Detailed analysis of leaf shape, margin, and veins leading to your conclusion.",
-      "crop": "name of the crop",
+      "reasoning": "Detailed analysis leading to your conclusion. If it's not a plant, explain why.",
+      "crop": "Exact name of one of the supported crops, OR 'N/A' if not a plant",
       "confidence": "high / medium / low",
       "alternatives": ["possible option1", "option2"]
     }}

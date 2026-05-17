@@ -1,55 +1,322 @@
-# 🏗️ Architecture Design: Collaborative Multi-Agent System
+# docs/architecture.md
 
-CropCare AI is designed as a **Sequential Multi-Agent System**. Instead of relying on a single general-purpose AI model, it decomposes the complex agricultural diagnostic process into a series of specialized tasks, each handled by a dedicated "Expert Agent."
+# 🏛️ CropCare AI — Detailed System Architecture
 
----
+CropCare AI is designed as a secure Hybrid Multimodal Agricultural Intelligence Platform with layered perception, reasoning, localization, observability, and multilingual interaction capabilities.
 
-## 🖼️ System Architecture Diagram
-The diagram below illustrates how user data flows through the security layer into the multi-agent orchestration core.
+CropCare AI is a Hybrid Multimodal Agricultural Intelligence System designed using layered AI orchestration principles.
 
-![System Architecture](Architecture.png)
+The architecture combines:
 
----
-
-## 🤖 The Multi-Agent Orchestration Core
-The heart of the system is `src/orchestrator.py`, which manages the state and handoffs between the following agents:
-
-### 1. Vision Agent (`src/vision_agent.py`)
-*   **Role**: Visual Perception Specialist.
-*   **Action**: Analyzes uploaded images using Gemini Pro Vision. It identifies the crop type and locates specific leaf anomalies or discoloration patterns.
-*   **Output**: Structured visual markers.
-
-### 2. Symptom Agent (`src/symptom_agent.py`)
-*   **Role**: Diagnostic Reporter.
-*   **Action**: Takes the raw visual markers and translates them into a professional agricultural symptom report (e.g., "Interveinal chlorosis with necrotic spotting").
-*   **Output**: Technical symptom description.
-
-### 3. Disease Agent (`src/disease_agent.py`)
-*   **Role**: Diagnostic Pathologist.
-*   **Action**: Uses **Retrieval-Augmented Generation (RAG)** to query the internal `disease_knowledge_base`. It matches the technical symptoms against thousands of documented crop diseases.
-*   **Output**: Confirmed diagnosis and confidence level.
-
-### 4. Treatment Agent (`src/treatment_agent.py`)
-*   **Role**: Agronomist & Pharmacist.
-*   **Action**: Generates a tiered treatment plan, providing both **organic (biological)** and **chemical** solutions for the identified disease.
-*   **Output**: Step-by-step recovery protocol.
-
-### 5. Regional Agent (`src/regional_agent.py`)
-*   **Role**: Local Field Consultant.
-*   **Action**: Injects geographical context by querying the `regional_knowledge_base`. It adapts the treatment based on local weather conditions and provides preventive measures specific to the user's region.
-*   **Output**: Localized advice and preventive strategies.
+* Deep Learning Computer Vision
+* Multimodal Vision Intelligence
+* Cognitive LLM Reasoning
+* Retrieval-Augmented Generation
+* Regional Agricultural Intelligence
+* Production-Grade Observability
 
 ---
 
-## 🔄 Data Pipeline Flow
-1.  **Safety Interception**: Request is sanitized by `src/safety.py`.
-2.  **State Initialization**: Orchestrator creates a shared state object.
-3.  **Sequential Execution**: Agents run in order (Vision → Symptom → Disease → Treatment → Regional). Each agent enriches the shared state with its expert findings.
-4.  **Final Synthesis**: The Orchestrator merges all agent outputs into a final, user-friendly summary.
-5.  **Persistence**: The entire interaction is saved to the PostgreSQL database for future reference.
+# 🌱 High-Level Architecture Philosophy
+
+Traditional agricultural AI systems often rely entirely on a single LLM.
+
+This creates several problems:
+
+❌ weak visual classification
+❌ hallucinated diagnoses
+❌ inconsistent treatment generation
+❌ poor explainability
+
+CropCare AI solves this by separating:
+
+| Intelligence Layer | Responsibility                       |
+| ------------------ | ------------------------------------ |
+| Perception Layer   | Visual disease recognition           |
+| Translation Layer  | Image-to-text symptom conversion     |
+| Reasoning Layer    | Disease verification and explanation |
+| Knowledge Layer    | RAG-based factual grounding          |
+| Advisory Layer     | Regional adaptation and treatment    |
 
 ---
 
+# 🧠 Full Hybrid Pipeline Architecture
+
+![System Architecture](../Architecture.svg)
+
+# 👁️ Deep Learning Perception Layer
+
+## MobileNetV2 CNN Classifier
+
+### File
+
+```text
+src/disease_classifier.py
+```
+
+### Responsibilities
+
+The CNN classifier is responsible for:
+
+* crop classification
+* disease recognition
+* confidence estimation
+* fast local inference
+
+Unlike LLMs, CNNs are specialized for:
+
+✅ visual feature extraction
+✅ spatial pattern learning
+✅ image classification
+
+---
+
+## Why CNN Instead of Pure LLM Vision?
+
+LLMs are excellent at:
+
+* reasoning
+* explanation
+* summarization
+* language synthesis
+
+However, specialized CNNs outperform LLMs for:
+
+* fine-grained plant disease classification
+* lesion pattern recognition
+* visual agricultural pathology
+
+This is why CropCare AI separates:
+
+```text
+Perception ≠ Reasoning
+```
+
+---
+
+# 🌉 Multimodal Translation Layer
+
+## Gemini Symptom Agent
+
+### File
+
+```text
+src/symptom_agent.py
+```
+
+### Purpose
+
+Groq Llama models are text-only systems.
+
+Therefore, Gemini Vision acts as a multimodal translator that converts:
+
+```text
+Image → Structured Agronomic Symptoms
+```
+
+Example:
+
+```text
+Brown necrotic lesions with yellow chlorotic halos.
+```
+
+This creates a bridge between:
+
+* visual intelligence
+* text reasoning systems
+
+---
+
+# 🧠 Cognitive Reasoning Layer
+
+## Pathfinder Agent
+
+### File
+
+```text
+src/disease_agent.py
+```
+
+### Responsibilities
+
+The Pathfinder Agent:
+
+* validates CNN predictions
+* reasons over symptom descriptions
+* retrieves RAG context
+* generates agronomist explanations
+* verifies disease consistency
+
+This transforms the system from:
+
+```text
+simple classifier
+```
+
+into:
+
+```text
+explainable agricultural intelligence
+```
+
+---
+
+# 📚 Retrieval-Augmented Generation Layer
+
+## ChromaDB Knowledge System
+
+The RAG layer stores:
+
+* disease literature
+* treatment protocols
+* prevention methods
+* crop pathology data
+
+This reduces hallucinations and grounds outputs in factual agricultural information.
+
+---
+
+# 💊 Treatment Intelligence Layer
+
+## Treatment Agent
+
+### File
+
+```text
+src/treatment_agent.py
+```
+
+### Responsibilities
+
+* generate organic treatments
+* generate chemical recommendations
+* provide recovery protocols
+* suggest preventive practices
+
+---
+
+# 🌍 Regional Intelligence Layer
+
+## Regional Agent
+
+### File
+
+```text
+src/regional_agent.py
+```
+
+### Responsibilities
+
+* adapt recommendations to local weather
+* account for environmental risk
+* provide localized agricultural advice
+
+---
+
+# ⚡ Observability & Metrics Architecture
+
+CropCare AI includes a full observability system.
+
+The orchestrator tracks:
+
+| Metric                   | Description                       |
+| ------------------------ | --------------------------------- |
+| cv_inference_sec         | CNN prediction latency            |
+| symptom_analysis_sec     | Gemini symptom extraction latency |
+| disease_reasoning_sec    | Groq reasoning + RAG latency      |
+| treatment_generation_sec | Treatment synthesis latency       |
+| regional_analysis_sec    | Regional advisory latency         |
+| total_pipeline_sec       | End-to-end execution latency      |
+
+---
+
+# 🌐 Multilingual & Voice Architecture
+
+CropCare AI includes multilingual conversational support.
+
+## Supported Languages
+
+| Language | Support |
+| -------- | ------- |
+| English  | ✅       |
+| Tamil    | ✅       |
+| Hindi    | ✅       |
+
+The preferred language is stored persistently and applied throughout the conversation lifecycle.
+
+---
+
+## Voice Pipeline
+
+The system supports:
+
+* speech-to-text conversion
+* multilingual voice queries
+* text-to-speech output generation
+
+Voice inputs are converted into structured agricultural prompts before entering the orchestration pipeline.
+
+---
+
+# 🔐 Authentication Architecture
+
+CropCare AI includes a secure authentication workflow.
+
+## Login & Signup System
+
+Features:
+
+* protected registration flow
+* password authentication
+* isolated user sessions
+* PostgreSQL-backed persistence
+
+## Shared Secret Registration Gate
+
+To create an account, users must provide a valid application shared secret.
+
+This mechanism protects:
+
+* API credits
+* AI infrastructure
+* unauthorized registrations
+* malicious automation
+
+---
+
+# 🛡️ Production Engineering Architecture
+
+## Reliability Features
+
+| Feature               | Purpose                           |
+| --------------------- | --------------------------------- |
+| Safety Interceptor    | Blocks malicious prompts          |
+| Shared Secret         | Prevents API abuse                |
+| SQLAlchemy ORM        | Prevents SQL injection            |
+| Media Cleanup         | Prevents storage exhaustion       |
+| Context Summarization | Prevents token overflow           |
+| Singleton Factory     | Prevents heavy client duplication |
+| Structured Validation | Guarantees schema integrity       |
+| Rate Limiting         | Prevents abuse and token burn     |
+
+---
+
+# 🐳 Deployment Architecture
+
+CropCare AI supports:
+
+* localhost deployment
+* Docker containerization
+* Streamlit Cloud deployment
+
+The system includes:
+
+* Dockerfile
+* .dockerignore
+* production-safe configurations
+* environment-based secret management
+
+---
 ## 🛡️ Production Readiness Audit (12 Pillars)
 While the agents provide the intelligence, the following 12 pillars provide the **stability and security**:
 
@@ -65,3 +332,26 @@ While the agents provide the intelligence, the following 12 pillars provide the 
 10. **SQL Sanitization**: 100% parameterized queries.
 11. **Media Cleanup**: Automated purging of temp files.
 12. **Singleton/Factory**: Centralized resource management in `src/factory.py`.
+
+
+# 🎯 Architectural Summary
+
+CropCare AI is not simply a chatbot.
+
+It is a:
+
+```text
+Hybrid Multimodal AI Orchestration System
+```
+
+where:
+
+* CNNs specialize in perception
+* Gemini specializes in multimodal translation
+* Groq specializes in reasoning
+* ChromaDB specializes in factual grounding
+* Orchestrator specializes in coordination and observability
+
+This separation of intelligence responsibilities creates a significantly more scalable and production-oriented AI architecture.
+
+

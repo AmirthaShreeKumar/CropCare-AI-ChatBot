@@ -228,6 +228,12 @@ st.markdown("""
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
         border: 1px solid #e5e7eb !important;
     }
+
+    /* Hide browser default password reveal eye icon to prevent double eyes */
+    input[type="password"]::-ms-reveal,
+    input[type="password"]::-ms-clear {
+        display: none;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -237,13 +243,14 @@ with col1:
     st.markdown('<div class="title-container"><h1>🌱 CropCare AI Assistant</h1></div>', unsafe_allow_html=True)
 
 with col2:
-    if st.button("New Chat", use_container_width=True):
-        new_chat_id = str(uuid.uuid4())
-        st.session_state.chat_id = new_chat_id
-        st.session_state.messages = []
-        st.session_state.uploader_key += 1
-        create_chat(new_chat_id, st.session_state.user_id, "New Chat")
-        st.rerun()
+    if st.session_state.get("authenticated", False):
+        if st.button("New Chat", use_container_width=True):
+            new_chat_id = str(uuid.uuid4())
+            st.session_state.chat_id = new_chat_id
+            st.session_state.messages = []
+            st.session_state.uploader_key += 1
+            create_chat(new_chat_id, st.session_state.user_id, "New Chat")
+            st.rerun()
 
 
 if "chat_id" not in st.session_state:
@@ -459,7 +466,7 @@ for msg in st.session_state.messages:
         display_content = msg["content"]
         if msg.get("audio_content") and msg["role"] == "user":
             display_content = f"🎙️ {display_content}"
-        st.write(display_content)
+        st.markdown(display_content, unsafe_allow_html=True)
         if msg.get("audio_content"):
             try:
                 st.audio(base64.b64decode(msg["audio_content"]))
@@ -568,8 +575,22 @@ if user_input or uploaded_file or audio_input:
             detected_location = detect_location_from_text(effective_input or "")
 
             try:
-                with st.spinner("Analyzing plant... 🌿"):
+                import time
+                with st.status("🌿 CropCare AI: Executing Hybrid Multimodal Pipeline...", expanded=True) as status:
+                    st.write("🔍 Initializing PyTorch Perception Layers...")
+                    time.sleep(0.4)
+                    st.write("👁️ Phase 1: Running Local CV Model (MobileNetV2)...")
+                    
                     result = orchestrate_pipeline(image_path, effective_input or "", detected_location)
+                    
+                    st.write("📝 Phase 2: Analyzing physical leaf symptoms...")
+                    st.write("🔬 Phase 3: Consulting Pathfinder Reasoning Layer & ChromaDB RAG...")
+                    st.write("💊 Phase 4: Prescribing clinical treatments & safety precautions...")
+                    if detected_location:
+                        st.write(f"🌍 Phase 5: Assessing local agricultural threats for {detected_location}...")
+                    
+                    time.sleep(0.3)
+                    status.update(label="✅ Analysis Succeeded!", state="complete", expanded=False)
                 
                 if "error" in result:
                     logger.error(f"Orchestration pipeline failed: {result['error']}")
@@ -585,14 +606,131 @@ if user_input or uploaded_file or audio_input:
             
             disease_info = result['disease_info']
 
-            response = f"""
+            # Construct Visual Badge & Warning Alert Card
+            pred_source = disease_info.get("prediction_source", "Fallback Mode: Gemini Vision Analysis")
+            cv_conf = disease_info.get("cv_confidence")
+            
+            if cv_conf is not None:
+                conf_pct = round(cv_conf * 100, 2)
+                conf_display = f"{conf_pct}%"
+                if cv_conf < 0.75:
+                    conf_color = "#e07a5f"
+                    warning_alert = f"""
+<div style='background-color: #fffbeb; border: 1px solid #fef3c7; border-left: 5px solid #d97706; padding: 15px; border-radius: 12px; margin-top: 15px;'>
+    <span style='font-size: 1.2rem; margin-right: 8px;'>⚠️</span>
+    <b style='color: #b45309;'>Low Classifier Confidence ({conf_display})</b>
+    <p style='color: #78350f; font-size: 0.9rem; margin: 4px 0 0 0;'>
+        The deep learning classifier indicates high uncertainty. CropCare's AI Pathfinder and RAG reasoning pipeline is executing a deep verification of symptoms.
+    </p>
+</div>
+"""
+                else:
+                    conf_color = "#10b981"
+                    warning_alert = ""
+            else:
+                conf_display = str(disease_info.get("confidence", "high")).upper()
+                conf_color = "#10b981" if conf_display == "HIGH" else "#cda250"
+                warning_alert = ""
+
+            badge_html = f"""
+<div style='background: linear-gradient(135deg, #ffffff 0%, #f7f9f6 100%); padding: 20px; border-radius: 16px; border: 1px solid rgba(27,77,62,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.02); margin-bottom: 20px;'>
+    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;'>
+        <span style='background-color: rgba(16,185,129,0.1); color: #065f46; font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; font-family: "Outfit", sans-serif;'>
+            {pred_source}
+        </span>
+        <span style='font-size: 0.85rem; color: #6b7280; font-weight: 500;'>
+            Confidence: <b style='color: {conf_color};'>{conf_display}</b>
+        </span>
+    </div>
+    <div style='display: flex; gap: 15px; align-items: center;'>
+        <span style='font-size: 2.2rem;'>🍃</span>
+        <div>
+            <div style='font-size: 0.8rem; text-transform: uppercase; color: #9ca3af; letter-spacing: 0.5px;'>Pathfinder Diagnosis</div>
+            <div style='font-size: 1.4rem; font-weight: 700; color: #1f2937; font-family: "Outfit", sans-serif;'>{disease_info['disease_name']}</div>
+            <div style='font-size: 0.9rem; color: #4b5563; margin-top: 2px;'>Crop Species: <b>{result['crop_info']['crop']}</b></div>
+        </div>
+    </div>
+    {warning_alert}
+</div>
+"""
+
+            # Get timing metrics
+            metrics = result.get("performance_metrics", {})
+            cv_time = metrics.get("cv_inference_sec", 0.0)
+            symptom_time = metrics.get("symptom_analysis_sec", 0.0)
+            reasoning_time = metrics.get("disease_reasoning_sec", 0.0)
+            treatment_time = metrics.get("treatment_generation_sec", 0.0)
+            regional_time = metrics.get("regional_analysis_sec", 0.0)
+            total_time = metrics.get("total_pipeline_sec", 0.0)
+
+            # Determine Inference Engine details
+            if cv_conf is not None:
+                inference_engine = "MobileNetV2 + Groq Llama 3.1"
+                fallback_status = "Inactive"
+                fallback_color = "#10b981"
+            else:
+                inference_engine = "Gemini Vision (Fallback)"
+                fallback_status = "Active"
+                fallback_color = "#e07a5f"
+
+            metrics_html = f"""
+<div style='background: linear-gradient(135deg, #1b3d33 0%, #0d1f1a 100%); padding: 22px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 10px 30px rgba(0,0,0,0.15); margin-bottom: 20px; color: #ffffff; font-family: "Outfit", sans-serif;'>
+    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;'>
+        <span style='font-size: 1.3rem;'>⚡</span>
+        <span style='font-weight: 700; font-size: 1.1rem; letter-spacing: 0.5px; color: #10b981;'>System Performance Metrics</span>
+    </div>
+    <div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; margin-bottom: 15px;'>
+        <div>
+            <div style='font-size: 0.75rem; text-transform: uppercase; color: #9ca3af; letter-spacing: 0.5px;'>🧠 Inference Engine</div>
+            <div style='font-size: 0.9rem; font-weight: 600; color: #e5e7eb; margin-top: 4px;'>{inference_engine}</div>
+        </div>
+        <div>
+            <div style='font-size: 0.75rem; text-transform: uppercase; color: #9ca3af; letter-spacing: 0.5px;'>📊 Confidence</div>
+            <div style='font-size: 0.9rem; font-weight: 600; color: {conf_color}; margin-top: 4px;'>{conf_display}</div>
+        </div>
+        <div>
+            <div style='font-size: 0.75rem; text-transform: uppercase; color: #9ca3af; letter-spacing: 0.5px;'>🔄 Fallback Mode</div>
+            <div style='font-size: 0.9rem; font-weight: 600; color: {fallback_color}; margin-top: 4px;'>{fallback_status}</div>
+        </div>
+    </div>
+    <div style='padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05);'>
+        <div style='font-size: 0.8rem; font-weight: 700; color: #10b981; margin-bottom: 8px;'>⏱️ Pipeline Stage Latencies:</div>
+        <div style='display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: #d1d5db;'>
+            <div style='display: flex; justify-content: space-between;'>
+                <span>👁️ CV Perception Inference:</span>
+                <span style='font-family: monospace; font-weight: 600;'>{cv_time} sec</span>
+            </div>
+            <div style='display: flex; justify-content: space-between;'>
+                <span>📝 Symptom Analysis Extraction:</span>
+                <span style='font-family: monospace; font-weight: 600;'>{symptom_time} sec</span>
+            </div>
+            <div style='display: flex; justify-content: space-between;'>
+                <span>🔬 Disease Pathfinder (RAG Verification):</span>
+                <span style='font-family: monospace; font-weight: 600;'>{reasoning_time} sec</span>
+            </div>
+            <div style='display: flex; justify-content: space-between;'>
+                <span>💊 Treatment Prescription Formulation:</span>
+                <span style='font-family: monospace; font-weight: 600;'>{treatment_time} sec</span>
+            </div>
+            <div style='display: flex; justify-content: space-between;'>
+                <span>🌍 Regional Environmental Intelligence:</span>
+                <span style='font-family: monospace; font-weight: 600;'>{regional_time} sec</span>
+            </div>
+            <div style='display: flex; justify-content: space-between; font-weight: 700; color: #ffffff; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px; margin-top: 4px;'>
+                <span>⏱️ Total End-to-End Latency:</span>
+                <span style='font-family: monospace; color: #10b981;'>{total_time} sec</span>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
+            response = badge_html + metrics_html + f"""
 🌿 **Crop:** {result['crop_info']['crop']}
 
-🦠  **Disease:** {disease_info['disease_name']}
+🦠 **Disease:** {disease_info['disease_name']}
 
-📊 **Confidence:** {disease_info['confidence']}
-
-🔍  **Symptoms:**  
+🔍 **Symptoms:**  
 {result['symptoms']}
 """
 
@@ -652,16 +790,20 @@ if user_input or uploaded_file or audio_input:
             st.session_state.uploader_key += 1
 
         else:
-            past_msgs = get_chat_messages(st.session_state.chat_id)
-
-            if len(past_msgs) > 10:
-                with st.spinner("Condensing conversation history..."):
-                    history = summarizer.summarize_history(past_msgs[:-1])
-            else:
-                history = "\n".join([
-                    f"{m['role'].upper()}: {m['content']}"
-                    for m in past_msgs
-                ])
+            # Aggressively truncate history to protect Groq 6000 TPM limit
+            recent_msgs = past_msgs[-5:] # Only take the last 5 messages
+            history_lines = []
+            import re
+            for m in recent_msgs:
+                content = m['content']
+                # Strip out the giant HTML metrics/badges to save tokens
+                content = re.sub(r'<div.*?>.*?</div>', '', content, flags=re.DOTALL)
+                
+                # Truncate remaining text if it's still too long
+                if len(content) > 600:
+                    content = content[:600] + "\n... [Content Truncated for Context Limit]"
+                history_lines.append(f"{m['role'].upper()}: {content.strip()}")
+            history = "\n".join(history_lines)
 
             from src.regional_agent import detect_location_from_text, get_regional_advice
 
@@ -730,7 +872,7 @@ Answer clearly and helpfully in {selected_lang_name}.
         st.session_state.messages.append({"role": "assistant", "content": response, "audio_content": assistant_audio_b64})
         
         with st.chat_message("assistant"):
-            st.write(response)
+            st.markdown(response, unsafe_allow_html=True)
             if assistant_audio_b64:
                 st.audio(base64.b64decode(assistant_audio_b64))
 

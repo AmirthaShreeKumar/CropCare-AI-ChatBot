@@ -32,3 +32,11 @@ class AIClientFactory:
             genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
             cls._instances[f"gemini_{model_name}"] = genai.GenerativeModel(model_name)
         return cls._instances[f"gemini_{model_name}"]
+
+    @classmethod
+    def get_disease_classifier(cls):
+        if "disease_classifier" not in cls._instances:
+            from src.disease_classifier import DiseaseClassifier
+            cls._instances["disease_classifier"] = DiseaseClassifier()
+        return cls._instances["disease_classifier"]
+
