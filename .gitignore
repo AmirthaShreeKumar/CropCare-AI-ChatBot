@@ -225,6 +225,7 @@ chroma_db/
 !Sample_image_inputs/**
 !disease_knowledge_base/**
 !regional_knowledge_base/**
+!Output_ScreenShots/**
 
 # Model weights
 *.h5
