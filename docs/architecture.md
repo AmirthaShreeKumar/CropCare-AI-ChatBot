@@ -284,23 +284,6 @@ This mechanism protects:
 
 ---
 
-# 🛡️ Production Engineering Architecture
-
-## Reliability Features
-
-| Feature               | Purpose                           |
-| --------------------- | --------------------------------- |
-| Safety Interceptor    | Blocks malicious prompts          |
-| Shared Secret         | Prevents API abuse                |
-| SQLAlchemy ORM        | Prevents SQL injection            |
-| Media Cleanup         | Prevents storage exhaustion       |
-| Context Summarization | Prevents token overflow           |
-| Singleton Factory     | Prevents heavy client duplication |
-| Structured Validation | Guarantees schema integrity       |
-| Rate Limiting         | Prevents abuse and token burn     |
-
----
-
 # 🐳 Deployment Architecture
 
 CropCare AI supports:
@@ -333,6 +316,7 @@ While the agents provide the intelligence, the following 12 pillars provide the 
 11. **Media Cleanup**: Automated purging of temp files.
 12. **Singleton/Factory**: Centralized resource management in `src/factory.py`.
 
+---
 
 # 🎯 Architectural Summary
 

@@ -235,3 +235,12 @@ chroma_db/
 brain/
 notebooks/
 development_scripts/
+
+# Obsolete Documentation Files
+DISEASE_RAG_README.md
+SETUP_AND_RUN.md
+QUICKSTART.md
+
+# Runtime Databases and Cache Memory
+chroma/
+chat_memory/

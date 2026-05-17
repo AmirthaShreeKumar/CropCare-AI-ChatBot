@@ -92,6 +92,31 @@ Voice recordings are processed and translated into structured agricultural queri
 
 ---
 
+## 📝 Example Use Cases & Sample Inputs
+
+To test the system, you can use the following sample inputs. 
+
+> [!WARNING]  
+> **Agricultural Domain Only**: CropCare AI is equipped with a strict safety interceptor. It will instantly block and refuse to answer any queries or analyze any images that are not related to plants, farming, or agriculture.
+
+### 📷 1. Image Uploads
+You can test the deep learning Computer Vision and RAG pipeline by uploading test images. The local CNN is specifically trained on the **[PlantVillage Dataset](https://www.kaggle.com/datasets/abdallahalidev/plantvillage-dataset)**, meaning it excels at identifying exactly 38 specific crop-disease combinations.
+We have provided sample images for you in sthe `Sample_image_inputs/` folder in this repository. 
+* *Example*: Upload `temp_grape_leaf_blight.jpg` to see the multi-agent system diagnose Black Rot and prescribe regional treatments.
+* *Example*: Upload `temp_cow.jpg` to see the Gemini Gatekeeper reject the image because it is an animal, not a plant!
+
+### 💬 2. Text Queries
+You can ask complex agricultural questions directly:
+* *"What is the best organic treatment for powdery mildew on my tomato plants?"*
+* *"When is the best time to plant wheat in Punjab?"*
+
+### 🎙️ 3. Voice Inputs
+Using the microphone button, you can speak your questions in English, Tamil, or Hindi:
+* *"Mera khet mein keede lag gaye hain, koi dawa batao"* (Hindi for: My field is infested with pests, tell me some medicine)
+* *"En thakkali sediyil manjal nira pulligal ullana, enna seivathu?"* (Tamil for: My tomato plant has yellow spots, what should I do?)
+
+---
+
 ## 🔐 Secure Authentication System
 
 CropCare AI includes a secure login and registration workflow.
@@ -136,21 +161,7 @@ Metrics are rendered inside a premium glassmorphic Streamlit performance dashboa
 
 ---
 
-## 🛡️ Production-Grade Engineering
 
-The platform implements:
-
-✅ safety interceptors
-✅ confidence-aware orchestration
-✅ structured schema validation
-✅ rate limiting
-✅ SQL sanitization
-✅ shared-secret protection
-✅ automatic media cleanup
-✅ persistent PostgreSQL memory
-✅ Docker deployment support
-
----
 
 # 🏛️ Hybrid AI System Architecture
 
@@ -412,7 +423,4 @@ This creates a far more reliable and scalable AI architecture than relying on a 
 
 ---
 
----
-
----
 
