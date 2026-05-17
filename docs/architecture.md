@@ -42,7 +42,7 @@ CropCare AI solves this by separating:
 
 # 🧠 Full Hybrid Pipeline Architecture
 
-![System Architecture](/Architecture.svg)
+![System Architecture](Architecture.svg)
 
 # 👁️ Deep Learning Perception Layer
 
