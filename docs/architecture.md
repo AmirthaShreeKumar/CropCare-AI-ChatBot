@@ -41,7 +41,13 @@ CropCare AI solves this by separating:
 ---
 
 # 🧠 Full Hybrid Pipeline Architecture
+<<<<<<< HEAD
 ![System Architecture](Architecture.svg)
+=======
+
+![System Architecture](Architecture.svg)
+
+>>>>>>> fac58ab60224e1ced40b2293194c9b8e0c9024a8
 # 👁️ Deep Learning Perception Layer
 
 ## MobileNetV2 CNN Classifier
