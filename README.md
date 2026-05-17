@@ -232,7 +232,7 @@ The system separates:
 | Database           | PostgreSQL                      |
 | ORM                | SQLAlchemy                      |
 | Validation         | Pydantic                        |
-| Deployment         | Docker + Streamlit Cloud        |
+| Deployment         | Docker                          |
 | Observability      | Python Logging                  |
 
 ---
