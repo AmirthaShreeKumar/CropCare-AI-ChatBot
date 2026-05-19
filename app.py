@@ -1,7 +1,6 @@
 import streamlit as st
 import os
 import uuid
-from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from groq import Groq
 from streamlit_mic_recorder import mic_recorder
@@ -10,24 +9,41 @@ import tempfile
 from gtts import gTTS
 import base64
 
-
+from src.config import settings
+from src.auth import login_user, register_user
 from src.cleanup import cleanup_old_temp_files
+from src.health import log_startup_health, system_health_status
 from src.logger import logger
 from src.rate_limiter import limiter
-
-load_dotenv()
+from src.uploads import UploadValidationError, validate_image_upload, validate_audio_bytes
+from src.api_resilience import retry_external_api_call
+from src.autocorrect import autocorrect_and_normalize_query
 
 logger.info("CropCare AI App starting up...")
+try:
+    log_startup_health()
+    health_state = system_health_status()
+except Exception as exc:
+    logger.error("Startup health check failed unexpectedly: %s", exc, exc_info=True)
+    st.error("CropCare AI startup health check failed unexpectedly. Please review logs/app.log for details.")
+    st.stop()
+
+if not health_state["healthy"]:
+    logger.error("Application startup health failure: %s", health_state)
+    # Cleanup old temp files on startup
+    cleanup_old_temp_files()
+    st.error("CropCare AI startup health check failed. Please review logs/app.log for details.")
+    for check in health_state["checks"]:
+        if not check["healthy"]:
+            st.error(f"{check['name']}: {check['message']}")
+    st.stop()
 
 # Cleanup old temp files on startup
 cleanup_old_temp_files()
 
-
-
-
 from src.factory import AIClientFactory
 
-llm = AIClientFactory.get_llm()
+llm = AIClientFactory.get_llm(model_name="llama-3.3-70b-versatile")
 groq_client = AIClientFactory.get_groq_client()
 
 
@@ -82,28 +98,41 @@ def transcribe_audio(audio_bytes, language_code):
     """Transcribe audio bytes using Groq Whisper (cached)"""
     if not audio_bytes:
         return None
-    
+
+    tmp_path = None
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
             tmp_file.write(audio_bytes)
             tmp_path = tmp_file.name
 
+        # Select prompt based on language to prime Whisper for domain-specific vocabulary and spellings
+        whisper_prompt = "Agricultural query about crops, plants, diseases, soil, pests, symptoms, treatment, and prevention."
+        if language_code == "hi":
+            whisper_prompt = "यह ऑडियो कृषि और खेती के बारे में है। फसल, रोग, कीड़ा, पत्ती, पौधा, टमाटर, आलू, प्याज, पूँजाई, फंगस, उर्वरक, खाद, मिट्टी, सिंचाई, रोगों, लक्षणों और उपचार (kheti, rog, keeda, fasal, paudha, ponjai, fungus, khad, mitti, tamatar)."
+        elif language_code == "ta":
+            whisper_prompt = "விவசாயம், பயிர்கள், தாவர நோய்கள், பூச்சி, பூஞ்சை காளான், நோய், பூஞ்சை, தக்காளி, நெல், இலைகள், உர மேலாண்மை, மண்ணின் நலம் மற்றும் தீர்வுகள் பற்றிய ஆடியோ. (poonjai, poochi, noi, nel, payir, takkali, urulai, vengayam, uram, karumbu)."
+
         with open(tmp_path, "rb") as file:
-            transcription = groq_client.audio.transcriptions.create(
+            transcription = retry_external_api_call(
+                groq_client.audio.transcriptions.create,
                 file=(tmp_path, file.read()),
                 model="whisper-large-v3",
                 language=language_code,
-                prompt=f"The audio is in {language_code}. It is related to agriculture.",
+                prompt=whisper_prompt,
                 response_format="text",
             )
-        
-        # Cleanup
-        os.unlink(tmp_path)
-        
+
         return transcription.strip()
     except Exception as e:
-        st.error(f"Error transcribing audio with Groq: {str(e)}")
+        logger.error("Whisper transcription failed: %s", e, exc_info=True)
+        st.error("Unable to transcribe audio right now. Please try again.")
         return None
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except Exception as cleanup_error:
+                logger.warning("Failed to remove temporary audio file %s: %s", tmp_path, cleanup_error)
 
 @st.cache_data(show_spinner=False)
 def text_to_speech(text, lang):
@@ -133,9 +162,10 @@ def translate_response(text, target_lang_hint):
     
     try:
         prompt = f"Translate the following agricultural advice to {target_lang_hint}. Maintain the formatting and professional tone.\n\nText:\n{text}"
-        response = llm.invoke(prompt)
+        response = retry_external_api_call(llm.invoke, prompt)
         return response.content
-    except:
+    except Exception as err:
+        logger.warning("Translation fallback: %s", err)
         return text
 
 
@@ -249,6 +279,8 @@ with col2:
             st.session_state.chat_id = new_chat_id
             st.session_state.messages = []
             st.session_state.uploader_key += 1
+            st.session_state.audio_recorder_key = st.session_state.get('audio_recorder_key', 0) + 1
+            st.session_state.last_audio = None
             create_chat(new_chat_id, st.session_state.user_id, "New Chat")
             st.rerun()
 
@@ -265,6 +297,9 @@ if "messages" not in st.session_state:
 
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
+
+if "audio_recorder_key" not in st.session_state:
+    st.session_state.audio_recorder_key = 0
 
 
 if "authenticated" not in st.session_state:
@@ -356,26 +391,27 @@ if not st.session_state.authenticated:
         tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
         
         with tab1:
-            login_user = st.text_input("Username", key="l_user", placeholder="Enter your username")
-            login_pass = st.text_input("Password", type="password", key="l_pass", placeholder="Enter your password")
+            login_username = st.text_input("Username", key="l_user", placeholder="Enter your username")
+            login_password = st.text_input("Password", type="password", key="l_pass", placeholder="Enter your password")
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("Login", key="login_btn"):
-                user_id = authenticate_user(login_user, login_pass)
-                if user_id:
+                user_info = login_user(login_username, login_password)
+                if user_info and isinstance(user_info, dict) and "id" in user_info:
                     st.session_state.authenticated = True
-                    st.session_state.user_id = user_id
-                    st.session_state.username = login_user
+                    st.session_state.user_id = user_info["id"]
+                    st.session_state.role = user_info.get("role", "user")
+                    st.session_state.username = login_username
                     # Always start with a FRESH chat_id on login to avoid sharing from previous session
                     st.session_state.chat_id = str(uuid.uuid4())
                     st.session_state.messages = []
                     
-                    create_chat(st.session_state.chat_id, user_id, "New Chat")
-                    logger.info(f"User '{login_user}' logged in successfully. New chat started: {st.session_state.chat_id}")
+                    create_chat(st.session_state.chat_id, user_info["id"], "New Chat")
+                    logger.info(f"User '{login_username}' logged in successfully. New chat started: {st.session_state.chat_id}")
                     st.success("Welcome back!")
                     st.rerun()
                 else:
-                    logger.warning(f"Failed login attempt for user '{login_user}'.")
-                    st.error("Invalid credentials")
+                    logger.error("Login failure with unexpected response: %r", user_info)
+                    st.error("Invalid credentials or internal login error.")
                     
         with tab2:
             new_user = st.text_input("Choose Username", key="s_user", placeholder="e.g. amirtha123")
@@ -384,19 +420,16 @@ if not st.session_state.authenticated:
             app_secret_input = st.text_input("App Access Key", type="password", key="s_secret", placeholder="Enter shared secret")
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("Create Account", key="signup_btn"):
-                if app_secret_input != os.getenv("APP_SECRET"):
-                    st.error("Invalid App Access Key. You cannot create an account.")
-                elif new_pass != confirm_pass:
+                if new_pass != confirm_pass:
                     st.error("Passwords do not match")
-                elif len(new_pass) < 6:
-                    st.error("Password too short")
                 else:
-                    if create_user(new_user, new_pass):
+                    try:
+                        register_user(new_user, new_pass, app_secret_input)
                         logger.info(f"New user account created: '{new_user}'")
                         st.success("Success! You can now log in.")
-                    else:
-                        logger.warning(f"Failed account creation for '{new_user}' (possibly exists).")
-                        st.error("Username taken")
+                    except Exception as err:
+                        logger.warning(f"Failed account creation for '{new_user}': {err}")
+                        st.error(str(err))
     st.stop()
 
 # Main App Sidebar
@@ -434,6 +467,8 @@ for chat in chats:
                 st.session_state.chat_id = chat_id
                 st.session_state.messages = get_chat_messages(chat_id)
                 st.session_state.uploader_key += 1  # reset uploader
+                st.session_state.audio_recorder_key = st.session_state.get('audio_recorder_key', 0) + 1
+                st.session_state.last_audio = None
                 st.rerun()
 
         with col2:
@@ -490,19 +525,38 @@ audio_bytes = audio_recorder(
     neutral_color="#6aa36f",
     icon_name="microphone",
     icon_size="2x",
+    key=f"audio_recorder_{st.session_state.get('audio_recorder_key', 0)}"
 )
 
 audio_input = None
 # Check if we have new audio
 if audio_bytes and audio_bytes != st.session_state.get('last_audio'):
-    with st.spinner("Transcribing..."):
-        audio_input = transcribe_audio(audio_bytes, selected_lang_code)
-        st.session_state.last_audio = audio_bytes
-        st.session_state.is_voice_interaction = True
+    try:
+        validate_audio_bytes(audio_bytes, settings.max_audio_upload_mb)
+        with st.spinner("Transcribing voice input..."):
+            raw_transcription = transcribe_audio(audio_bytes, selected_lang_code)
+            
+        if raw_transcription:
+            with st.spinner("Refining transcription / autocorrecting..."):
+                audio_input = autocorrect_and_normalize_query(raw_transcription, selected_lang_name)
+            st.session_state.last_audio = audio_bytes
+            st.session_state.is_voice_interaction = True
+        else:
+            audio_input = None
+            st.session_state.is_voice_interaction = False
+    except UploadValidationError as err:
+        logger.warning("Invalid voice upload: %s", err)
+        st.error(str(err))
+        audio_bytes = None
+        audio_input = None
+        st.session_state.is_voice_interaction = False
 else:
     st.session_state.is_voice_interaction = False
 
 user_input = st.chat_input("Ask about your crop...")
+if user_input:
+    with st.spinner("Refining query / autocorrecting..."):
+        user_input = autocorrect_and_normalize_query(user_input, selected_lang_name)
 
 
 def format_list(data):
@@ -566,10 +620,16 @@ if user_input or uploaded_file or audio_input:
 
         if uploaded_file is not None:
             logger.info(f"Image uploaded: {uploaded_file.name}")
-            image_path = f"temp_{uploaded_file.name}"
+            try:
+                image_path = validate_image_upload(uploaded_file, settings.max_image_upload_mb)
+            except UploadValidationError as err:
+                logger.warning("Rejected image upload: %s", err)
+                st.error(str(err))
+                uploaded_file = None
+                image_path = None
 
-            with open(image_path, "wb") as f:
-                f.write(uploaded_file.read())
+            if image_path is None:
+                st.stop()
 
             from src.regional_agent import detect_location_from_text
             detected_location = detect_location_from_text(effective_input or "")
@@ -600,6 +660,12 @@ if user_input or uploaded_file or audio_input:
                 logger.error(f"Unexpected error in image analysis: {e}", exc_info=True)
                 st.error("An unexpected error occurred during plant analysis. Please try again with a clearer image.")
                 st.stop()
+            finally:
+                if image_path:
+                    try:
+                        os.remove(image_path)
+                    except Exception:
+                        logger.debug("Could not remove temp image file: %s", image_path)
 
             treatment_steps = result.get("treatment_info", {}).get("treatment_steps", [])
             precautions = result.get("treatment_info", {}).get("safety_precautions", [])
@@ -849,17 +915,25 @@ STRICT REQUIREMENT: You MUST respond in {selected_lang_name} only.
 - If Hindi is selected, respond in Hindi using Devanagari script.
 - If Tamil is selected, respond in Tamil script.
 
-You can use the conversation history below for context, but you are also allowed to use your general agricultural knowledge to answer helpfully.
+GUIDELINES ON CONTEXT & MEMORY:
+1. Use the conversation history below to understand context, resolve pronouns (e.g., "it", "that", "the first disease"), or answer direct follow-up questions (e.g., "how to cure it?").
+2. Critical Constraint: If the user shifts the topic or asks a new general question (e.g., asking about a new crop, general fungal/pest diseases, general agricultural practices, etc.), do NOT restrict your answer to the crop or topic mentioned in the previous history. Answer the general question comprehensively and directly without unnecessarily mixing in details of the previous crop unless the user explicitly asks you to relate them.
+
+FACTUAL SAFEGUARD & REPETITION BAN:
+1. STRICT TRUTH: Do NOT lie, make up, or hallucinate any crop diseases, pests, treatments, or agricultural facts.
+2. If the user asks about a term, crop disease, or pest that is non-existent, highly misspelled, or biologically/chemically nonsensical (e.g., "chlorophyll disease" / "பச்சையம் நோய்"), do NOT make up facts or agree with it. Politely state that the term is not a recognized agricultural disease/pest, and ask the user to clarify, spell it again, or describe the leaf's physical symptoms.
+3. CROP-SPECIFIC REAL DISEASES: If the user asks about diseases or pests of a specific crop (e.g., eggplant/brinjal, tomato, cotton, rice, etc.), do NOT give generic answers about "bacterial, fungal, and viral diseases". Instead, use your deep agricultural expertise to list and describe the actual, recognized, and SPECIFIC diseases for that crop (e.g., for eggplant/brinjal, list Phomopsis Blight / போமாப்சிஸ் கருகல் நோய், Little Leaf of Brinjal / சிறிய இலை நோய், Bacterial Wilt / பாக்டீரியா வாடல், Damping Off / நாற்று அழுகல் நோய், etc.). Always use their correct, authentic regional names.
+4. ABSOLUTE BAN ON REPETITION: Do NOT output repetitive sentences, paragraphs, or blocks. Every sentence and paragraph you output must be unique and highly meaningful.
 
 Conversation History:
 {history}
 
 User's current question: {effective_input}
 
-Answer clearly and helpfully in {selected_lang_name}.
+Answer clearly and helpfully in {selected_lang_name} following the guidelines and safeguards above.
 """
                 with st.spinner("Thinking..."):
-                    response = llm.invoke(prompt).content
+                    response = retry_external_api_call(llm.invoke, prompt).content
 
         assistant_audio_b64 = None
         if is_voice_turn:
@@ -875,6 +949,11 @@ Answer clearly and helpfully in {selected_lang_name}.
             st.markdown(response, unsafe_allow_html=True)
             if assistant_audio_b64:
                 st.audio(base64.b64decode(assistant_audio_b64))
+
+        if is_voice_turn:
+            st.session_state.audio_recorder_key = st.session_state.get('audio_recorder_key', 0) + 1
+            st.session_state.last_audio = None
+            st.rerun()
 
 
 

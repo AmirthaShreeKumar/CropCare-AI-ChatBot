@@ -1,10 +1,6 @@
-# docs/architecture.md
-
 # 🏛️ CropCare AI — Detailed System Architecture
 
 CropCare AI is designed as a secure Hybrid Multimodal Agricultural Intelligence Platform with layered perception, reasoning, localization, observability, and multilingual interaction capabilities.
-
-CropCare AI is a Hybrid Multimodal Agricultural Intelligence System designed using layered AI orchestration principles.
 
 The architecture combines:
 
@@ -14,6 +10,8 @@ The architecture combines:
 * Retrieval-Augmented Generation
 * Regional Agricultural Intelligence
 * Production-Grade Observability
+* Multi-Container Docker Orchestration
+* Persistent PostgreSQL State
 
 ---
 
@@ -28,7 +26,7 @@ This creates several problems:
 ❌ inconsistent treatment generation
 ❌ poor explainability
 
-CropCare AI solves this by separating:
+CropCare AI solves this by utilizing a highly decoupled pipeline:
 
 | Intelligence Layer | Responsibility                       |
 | ------------------ | ------------------------------------ |
@@ -37,17 +35,66 @@ CropCare AI solves this by separating:
 | Reasoning Layer    | Disease verification and explanation |
 | Knowledge Layer    | RAG-based factual grounding          |
 | Advisory Layer     | Regional adaptation and treatment    |
+| Infrastructure     | Dockerized Web & DB Containers       |
 
 ---
 
 # 🧠 Full Hybrid Pipeline Architecture
-<<<<<<< HEAD
-![System Architecture](Architecture.svg)
-=======
 
 ![System Architecture](Architecture.svg)
 
->>>>>>> fac58ab60224e1ced40b2293194c9b8e0c9024a8
+---
+
+# 🤖 Collaborative Multi-Agent Pipeline & Data Flow
+
+CropCare AI leverages a state-managed, highly collaborative Multi-Agent orchestration design coordinated by the central pipeline manager (`src/orchestrator.py`):
+
+```text
+[User Input] ➡️ [Safety Shield] ➡️ [Orchestrator Core]
+                                         │
+                 ┌───────────────────────┴───────────────────────┐
+                 ▼                                               ▼
+       [Local MobileNetV2 CNN]                         [Symptom Agent (Gemini)]
+     (Disease & Crop Classifier)                     (Detailed Visual Feature Text)
+                 │                                               │
+                 └───────────────────────┬───────────────────────┘
+                                         ▼
+                             [Pathfinder Agent (Llama)]
+                           (Cross-References ChromaDB RAG)
+                                         │
+                                         ▼
+                            [Treatment Agent (Llama)]
+                          (Prescribes Chemical & Organic)
+                                         │
+                                         ▼
+                             [Regional Agent (Llama)]
+                            (Threat Adaptation & Local)
+                                         │
+                                         ▼
+                            [Translation Layer (Llama)]
+                                         │
+                                         ▼
+                               [TTS Audio Output]
+```
+
+### Sequential Execution Flow:
+1. **Gatekeeper Validation**: The **Gatekeeper Agent** (Gemini 2.5 Flash Vision) acts as a strict cognitive shield. If a user uploads an image, the Gatekeeper validates whether the contents contain plant leaves, stems, crops, pests, or agricultural soil. Any non-agricultural image is rejected instantly.
+2. **Dual-Path Parallel Perception**:
+   - The image flows to the **Local PyTorch MobileNetV2 CNN** for rapid, local deep learning disease and crop prediction.
+   - Concurrently, the **Symptom Agent** (Gemini 2.5 Flash Vision) acts as a visual translation expert, transforming raw visual symptoms into rich, descriptive text (e.g., *leaf margins showing yellow halos*).
+   - *Resilience Fallback*: If the local PyTorch model encounters an error, the pipeline gracefully triggers the **Zero-Shot Gemini Vision fallback**.
+3. **Factual Verification (The Pathfinder)**: 
+   - The **Pathfinder Agent** receives the CNN prediction and the Symptom Agent's visual description.
+   - It queries the **ChromaDB Disease Knowledge Base** using semantic embeddings (`all-MiniLM-L6-v2`) to verify the diagnosis against grounded factual data sheets.
+4. **Treatment Generation**:
+   - The verified diagnosis is handed off to the **Treatment Agent**, which builds a rigorous, day-by-day chemical or organic remediation protocol.
+5. **Regional Adaptation**:
+   - The treatment protocol is passed to the **Regional Agent**, which performs a secondary RAG query against the **ChromaDB Regional Knowledge Base** to customize the advice for local microclimates.
+6. **Translation & Speech**:
+   - The finalized advice is translated into the user's preferred language (English, Hindi, or Tamil) and made playable via Text-To-Speech (TTS).
+
+---
+
 # 👁️ Deep Learning Perception Layer
 
 ## MobileNetV2 CNN Classifier
@@ -100,19 +147,21 @@ Perception ≠ Reasoning
 
 # 🌉 Multimodal Translation Layer
 
-## Gemini Symptom Agent
+## Vision Gatekeeper & Symptom Agent
 
-### File
+### Files
 
 ```text
+src/vision_agent.py
 src/symptom_agent.py
 ```
 
 ### Purpose
 
-Groq Llama models are text-only systems.
+To ensure the pipeline only processes relevant agricultural inputs and to bridge the gap between visual data and text-only LLMs.
 
-Therefore, Gemini Vision acts as a multimodal translator that converts:
+**1. Gatekeeper Agent:** Validates the uploaded image to ensure it is actually a plant or crop, rejecting irrelevant images (like animals or faces) before costly processing occurs.
+**2. Symptom Agent:** Acts as a multimodal translator that converts:
 
 ```text
 Image → Structured Agronomic Symptoms
@@ -124,10 +173,7 @@ Example:
 Brown necrotic lesions with yellow chlorotic halos.
 ```
 
-This creates a bridge between:
-
-* visual intelligence
-* text reasoning systems
+This decoupled approach creates a robust bridge between visual intelligence and text reasoning systems.
 
 ---
 
@@ -262,22 +308,27 @@ Voice inputs are converted into structured agricultural prompts before entering 
 
 ---
 
-# 🔐 Authentication Architecture
+# 🔐 Authentication Architecture & Data Mapping
 
-CropCare AI includes a secure authentication workflow.
+CropCare AI includes a highly secure, production-grade authentication workflow utilizing parameterized SQLAlchemy ORM connections.
+
+## Database Schema (`src/db.py`)
+
+* **`users`**: Contains IDs, unique usernames, Bcrypt-hashed credentials, roles, and registration dates.
+* **`chats`**: Tracks session metadata linked directly to a unique authenticated `user_id`.
+* **`messages`**: Stores conversation transcripts and optional base64-encoded speech-to-text voice records.
 
 ## Login & Signup System
 
 Features:
 
-* protected registration flow
-* password authentication
-* isolated user sessions
-* PostgreSQL-backed persistence
+* **Bcrypt Cryptography**: Passwords are mathematically salted and hashed; raw passwords are never stored.
+* **Persistent PostgreSQL State**: User data, roles, and isolated chat sessions are managed securely in the relational DB.
+* **Session Isolation**: Chat history is strictly bound to the authenticated user's session ID.
 
 ## Shared Secret Registration Gate
 
-To create an account, users must provide a valid application shared secret.
+To create an account, users must provide a valid application shared secret (`APP_SECRET`).
 
 This mechanism protects:
 
@@ -290,35 +341,48 @@ This mechanism protects:
 
 # 🐳 Deployment Architecture
 
-CropCare AI supports:
+CropCare AI utilizes a robust **Docker Compose** containerized environment.
 
-* localhost deployment
-* Docker containerization
-* Streamlit Cloud deployment
+The system is split into multiple isolated services running over a dedicated bridge network:
+
+1. **Web Container**: Runs the Streamlit frontend and orchestrates the AI pipeline.
+2. **Database Container**: Runs the PostgreSQL persistent database for user and session management.
 
 The system includes:
 
-* Dockerfile
-* .dockerignore
+* `Dockerfile` for the Streamlit web service
+* `docker-compose.yml` for orchestrating the multi-container environment
 * production-safe configurations
-* environment-based secret management
+* environment-based secret management (`.env`)
 
 ---
-## 🛡️ Production Readiness Audit (12 Pillars)
-While the agents provide the intelligence, the following 12 pillars provide the **stability and security**:
+
+# 📈 System Resilience & Failover Policy
+
+* **API Retries (`src/api_resilience.py`)**: Leverages `tenacity` retry loops with exponential backoff to handle network throttling, rate limiters, or transient external API crashes gracefully.
+* **Graceful Degradation**: 
+  * If a CNN prediction is ambiguous, the cognitive agents default to symptom-based RAG matching.
+  * If external Vision APIs drop, the pipeline degrades elegantly to text-only diagnostics.
+
+---
+
+## 🛡️ Production Readiness Audit (13 Pillars)
+
+While the agents provide the intelligence, the following 13 pillars provide the **stability and security**:
 
 1.  **Deterministic Safety**: Keywords + LLM-based filtering.
-2.  **Async AI Clients**: Non-blocking client initialization.
-3.  **Schema Validation**: Pydantic models for all data exchange.
-4.  **App Access Gate**: `APP_SECRET` required for registration.
-5.  **Generic Error Handling**: Sanitized user-facing exceptions.
-6.  **Persistent State**: PostgreSQL via SQLAlchemy.
-7.  **Agent Loop Guard**: `MAX_STEPS` prevents infinite reasoning loops.
-8.  **Context Management**: Automatic history slicing and summarization.
-9.  **Rate Limiting**: Sliding-window 10 requests/min per user.
-10. **SQL Sanitization**: 100% parameterized queries.
-11. **Media Cleanup**: Automated purging of temp files.
-12. **Singleton/Factory**: Centralized resource management in `src/factory.py`.
+2.  **Docker Orchestration**: Containerized multi-service deployment.
+3.  **Bcrypt Security**: Cryptographically hashed passwords.
+4.  **Schema Validation**: Pydantic models for all data exchange.
+5.  **App Access Gate**: `APP_SECRET` required for registration.
+6.  **Generic Error Handling**: Sanitized user-facing exceptions.
+7.  **Persistent State**: PostgreSQL via SQLAlchemy.
+8.  **Agent Loop Guard**: `MAX_STEPS` prevents infinite reasoning loops.
+9.  **Context Management**: Automatic history slicing and summarization.
+10. **Rate Limiting**: Sliding-window 10 requests/min per user.
+11. **SQL Sanitization**: 100% parameterized queries.
+12. **Media Cleanup**: Automated purging of temp files.
+13. **Singleton/Factory**: Centralized resource management in `src/factory.py`.
 
 ---
 
@@ -335,11 +399,10 @@ Hybrid Multimodal AI Orchestration System
 where:
 
 * CNNs specialize in perception
-* Gemini specializes in multimodal translation
+* Gemini specializes in multimodal translation and validation
 * Groq specializes in reasoning
 * ChromaDB specializes in factual grounding
 * Orchestrator specializes in coordination and observability
+* Docker & PostgreSQL specialize in robust deployment and state management
 
 This separation of intelligence responsibilities creates a significantly more scalable and production-oriented AI architecture.
-
-

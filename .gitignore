@@ -245,3 +245,14 @@ QUICKSTART.md
 # Runtime Databases and Cache Memory
 chroma/
 chat_memory/
+
+# IDE files and OS metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary Scratch Files
+scratch/
+

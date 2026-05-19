@@ -1,10 +1,8 @@
-import os
 import google.generativeai as genai
 from langchain_groq import ChatGroq
 from groq import Groq
-from dotenv import load_dotenv
 
-load_dotenv()
+from src.config import settings
 
 class AIClientFactory:
     _instances = {}
@@ -14,7 +12,7 @@ class AIClientFactory:
         key = f"llm_{model_name}_{temperature}"
         if key not in cls._instances:
             cls._instances[key] = ChatGroq(
-                groq_api_key=os.getenv("GROQ_API_KEY"),
+                groq_api_key=settings.groq_api_key,
                 model_name=model_name,
                 temperature=temperature
             )
@@ -23,13 +21,13 @@ class AIClientFactory:
     @classmethod
     def get_groq_client(cls):
         if "groq_raw" not in cls._instances:
-            cls._instances["groq_raw"] = Groq(api_key=os.getenv("GROQ_API_KEY"))
+            cls._instances["groq_raw"] = Groq(api_key=settings.groq_api_key)
         return cls._instances["groq_raw"]
 
     @classmethod
     def get_gemini_model(cls, model_name="models/gemini-2.5-flash"):
         if f"gemini_{model_name}" not in cls._instances:
-            genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+            genai.configure(api_key=settings.google_api_key)
             cls._instances[f"gemini_{model_name}"] = genai.GenerativeModel(model_name)
         return cls._instances[f"gemini_{model_name}"]
 

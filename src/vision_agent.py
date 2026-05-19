@@ -1,5 +1,6 @@
 import google.generativeai as genai
 from PIL import Image
+from src.api_resilience import retry_external_api_call
 from src.utils_json_parsing import safe_json_parse
 import os
 import streamlit as st
@@ -51,7 +52,11 @@ def _detect_crop_cached(image_bytes):
     """
     try:
         logger.info("Calling Gemini Vision API for crop detection...")
-        result = model.generate_content([prompt, img], generation_config={"response_mime_type": "application/json"})
+        result = retry_external_api_call(
+            model.generate_content,
+            [prompt, img],
+            generation_config={"response_mime_type": "application/json"},
+        )
         data = safe_json_parse(result.text)
         if data:
             validated = CropDetection(**data)

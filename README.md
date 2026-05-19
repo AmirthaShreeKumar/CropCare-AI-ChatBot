@@ -1,15 +1,15 @@
-# README.md
-
 # 🌱 CropCare AI — Hybrid Multimodal Agricultural Intelligence Platform
 
 CropCare AI is a production-grade Hybrid AI System that combines Computer Vision, Multi-Agent LLM Reasoning, and Retrieval-Augmented Generation (RAG) to provide intelligent crop disease diagnosis, agronomist-level reasoning, and localized agricultural guidance.
 
-Unlike traditional AI chatbots that rely solely on Large Language Models, CropCare AI separates:
+Unlike traditional AI chatbots that rely solely on Large Language Models, CropCare AI utilizes a highly decoupled, multi-layer architecture that separates:
 
 * Visual Perception (Deep Learning CNN)
+* Multimodal Translation (Gemini Vision to Text translation)
 * Cognitive Reasoning (Multi-Agent LLM Pipeline)
 * Knowledge Verification (RAG)
 * Regional Intelligence (Environmental Context)
+* Persistence & History Isolation (PostgreSQL Database)
 
 This architecture enables the system to perform highly specialized plant disease classification while still delivering explainable reasoning, treatment generation, and region-specific recommendations.
 
@@ -46,7 +46,7 @@ The model is optimized for PlantVillage-style agricultural datasets.
 
 ## 🤖 Multi-Agent Cognitive Pipeline
 
-The system orchestrates specialized AI agents:
+The system orchestrates specialized AI agents through a highly decoupled pipeline:
 
 | Agent             | Responsibility                          |
 | ----------------- | --------------------------------------- |
@@ -55,6 +55,7 @@ The system orchestrates specialized AI agents:
 | Pathfinder Agent  | Performs disease verification via RAG   |
 | Treatment Agent   | Generates recovery protocols            |
 | Regional Agent    | Adapts recommendations to local climate |
+| Translation Layer | Provides localized language output      |
 
 ---
 
@@ -101,7 +102,7 @@ To test the system, you can use the following sample inputs.
 
 ### 📷 1. Image Uploads
 You can test the deep learning Computer Vision and RAG pipeline by uploading test images. The local CNN is specifically trained on the **[PlantVillage Dataset](https://www.kaggle.com/datasets/abdallahalidev/plantvillage-dataset)**, meaning it excels at identifying exactly 38 specific crop-disease combinations.
-We have provided sample images for you in sthe `Sample_image_inputs/` folder in this repository. 
+We have provided sample images for you in the `Sample_image_inputs/` folder in this repository. 
 * *Example*: Upload `temp_grape_leaf_blight.jpg` to see the multi-agent system diagnose Black Rot and prescribe regional treatments.
 * *Example*: Upload `temp_cow.jpg` to see the Gemini Gatekeeper reject the image because it is an animal, not a plant!
 
@@ -119,19 +120,19 @@ Using the microphone button, you can speak your questions in English, Tamil, or 
 
 ## 🔐 Secure Authentication System
 
-CropCare AI includes a secure login and registration workflow.
+CropCare AI includes a secure, production-ready login and registration workflow backed by a PostgreSQL database.
 
 ### Authentication Features
 
 * User login and signup pages
-* Password-protected authentication flow
+* Bcrypt Password-protected authentication flow
 * Shared-secret protected registration system
-* Persistent user session handling
-* Isolated conversation histories
+* Persistent user session handling (Isolated user chat states)
+* Isolated conversation histories per session
 
 ### Shared Secret Gatekeeping
 
-The signup page requires a hidden application shared secret.
+The signup page requires a hidden application shared secret (`APP_SECRET`).
 
 This prevents:
 
@@ -161,27 +162,23 @@ Metrics are rendered inside a premium glassmorphic Streamlit performance dashboa
 
 ---
 
-
-
 # 🏛️ Hybrid AI System Architecture
 
 CropCare AI uses a layered Hybrid Perception-Reasoning Architecture.
 
 The system separates:
 
-1. Deep Learning Perception Layer
-2. Multimodal Translation Layer
-3. Cognitive Reasoning Layer
-4. Knowledge Verification Layer
-5. Regional Intelligence Layer
+1. Security & Authentication Shield
+2. Deep Learning Perception Layer
+3. Multimodal Translation Layer
+4. Cognitive Reasoning Layer
+5. Knowledge Verification Layer
+6. Regional Intelligence Layer
+7. Persistent Relational Storage
 
 📌 For complete architecture details and diagrams:
 
-➡️ Refer to:
-
-```text
-/docs/architecture.md
-```
+➡️ Refer to: [docs/architecture.md](docs/architecture.md)
 
 ---
 
@@ -232,7 +229,7 @@ The system separates:
 | Database           | PostgreSQL                      |
 | ORM                | SQLAlchemy                      |
 | Validation         | Pydantic                        |
-| Deployment         | Docker + Streamlit Cloud        |
+| Deployment         | Docker + Docker Compose         |
 | Observability      | Python Logging                  |
 
 ---
@@ -242,94 +239,134 @@ The system separates:
 ```text
 CropCare-AI/
 │
-├── app.py
-├── requirements.txt
-├── Dockerfile
-├── .dockerignore
-├── README.md
-├── .env.example
+├── app.py                      # Main Streamlit Frontend
+├── db.py                       # PostgreSQL client & CRUD operations for sessions/chats/messages.
+├── requirements.txt            # Python dependencies list
+├── Dockerfile                  # Application build container recipe
+├── docker-compose.yml          # Container orchestration setup for spinning up both Web and Database services together.
+├── .dockerignore               # Docker ignore rules
+├── README.md                   # Project documentation
+├── .env.example                # Example environment variables setup
 │
 ├── docs/
-│   └── architecture.md
+│   └── architecture.md         # Detailed architectural guide
 │
 ├── src/
-│   ├── orchestrator.py
-│   ├── disease_classifier.py
-│   ├── vision_agent.py
-│   ├── symptom_agent.py
-│   ├── disease_agent.py
-│   ├── treatment_agent.py
-│   ├── regional_agent.py
-│   ├── safety.py
-│   ├── cleanup.py
-│   ├── summarizer.py
-│   ├── factory.py
-│   ├── schemas.py
+│   ├── config.py               # Pydantic Settings & Startup Validator
+│   ├── auth.py                 # Bcrypt Session Auth UI logic
+│   ├── uploads.py              # File signature & size safety validation (Magic Bytes checks).
+│   ├── api_resilience.py       # Tenacity backoff & API retry logic
+│   ├── health.py               # Pre-flight startup health checks
+│   ├── logger.py               # Rotating File Logger configuration
+│   ├── orchestrator.py         # Multi-Agent Routing & Pipeline Hub
+│   ├── disease_classifier.py   # PyTorch CNN local crop/disease predictor
+│   ├── vision_agent.py         # Multimodal visual analysis integration
+│   ├── symptom_agent.py        # Gemini-2.5 symptom text mapping
+│   ├── disease_agent.py        # Pathfinder Agent reasoning code
+│   ├── treatment_agent.py      # Prescribes Chemical & Organic Plans
+│   ├── regional_agent.py       # Regional Coordinator Agent
+│   ├── safety.py               # Prompt safety filtering interceptor
+│   ├── cleanup.py              # Temporary folder cleaning tools
+│   ├── summarizer.py           # Multi-turn history summarization
+│   ├── schemas.py              # Pydantic data schemas
 │   └── db.py
 │
 ├── model_weights/
-│   └── plant_disease_model.pth
+│   └── plant_disease_model.pth # Pre-trained CNN weights
+│
+├── Sample_image_inputs/        # Sample images for testing the platform
 │
 ├── logs/
-│   └── app.log
+│   └── app.log                 # Output logs
 │
 └── development_scripts/
-    └── train_cv_model.py
+    └── train_cv_model.py       # Model training script
 ```
 
 ---
 
-# ⚙️ Local Setup
+# 🐳 Production Docker Deployment (Recommended)
 
-## 1. Clone Repository
+CropCare AI is built to run as a multi-container Docker Compose application, ensuring that the frontend Streamlit application and the PostgreSQL database are properly networked, isolated, and scalable.
+
+## 1. Clone Repository & Setup Env
 
 ```bash
 git clone <repo-url>
 cd CropCare-AI
+cp .env.example .env
+```
+*Make sure to fill in `GROQ_API_KEY`, `GOOGLE_API_KEY`, and `APP_SECRET` in the `.env` file.*
+
+## 2. Build and Start Services
+
+Run the application in detached mode using Docker Compose:
+
+```bash
+docker compose up -d --build
+```
+
+This will:
+- Spin up the `db` container running PostgreSQL.
+- Build and spin up the `web` container running Streamlit.
+- Automatically link them together over a dedicated bridge network.
+
+## 3. Open Application
+
+```text
+http://localhost:8501
+```
+
+## 4. Viewing Logs & Diagnostics
+
+To see real-time container logs for debugging:
+
+```bash
+# View Web UI logs
+docker compose logs web -f
+
+# View Database logs
+docker compose logs db -f
 ```
 
 ---
 
-## 2. Create Virtual Environment
+# ⚙️ Manual Local Setup (Alternative)
+
+If you prefer to run the app directly on your host machine without Docker, follow these steps:
+
+## 1. Setup Virtual Environment
 
 ### Windows
-
 ```bash
 python -m venv venv
 venv\Scripts\activate
 ```
 
 ### Linux / Mac
-
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
----
-
-## 3. Install Dependencies
+## 2. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
----
+## 3. Database & Environment Configuration
 
-## 4. Configure Environment Variables
-
-Create `.env`
+Make sure you have a local PostgreSQL instance running. Create a `.env` file and point `DATABASE_URL` to your local DB:
 
 ```env
 GOOGLE_API_KEY=your_key
 GROQ_API_KEY=your_key
 APP_SECRET=your_secret
-DATABASE_URL=postgresql://...
+DATABASE_URL=postgresql://username:password@localhost:5432/cropcare
 ```
 
----
-
-## 5. Run Application
+## 4. Run Application
 
 ```bash
 streamlit run app.py
@@ -337,42 +374,16 @@ streamlit run app.py
 
 ---
 
-# 🐳 Docker Deployment
-
-## Build Docker Image
-
-```bash
-docker build -t cropcare-ai .
-```
-
----
-
-## Run Container
-
-```bash
-docker run -p 8501:8501 cropcare-ai
-```
-
----
-
-## Open Application
-
-```text
-http://localhost:8501
-```
-
----
-
-
-
 # 🛡️ Reliability & Safety Features
 
 | Feature                          | Status |
 | -------------------------------- | ------ |
 | Deterministic Safety Interceptor | ✅      |
 | Shared Secret Protection         | ✅      |
+| Bcrypt Password Hashing          | ✅      |
 | SQL Injection Protection         | ✅      |
-| Rate Limiting                    | ✅      |
+| Rate Limiting & API Backoff      | ✅      |
+| Magic Byte File Validation       | ✅      |
 | Structured Pydantic Validation   | ✅      |
 | Automatic Media Cleanup          | ✅      |
 | Persistent PostgreSQL Memory     | ✅      |
@@ -402,7 +413,6 @@ Logged events include:
 * performance timings
 * security triggers
 
-
 ---
 
 # 🎯 Design Philosophy
@@ -414,13 +424,12 @@ CropCare AI is designed around the idea that:
 Therefore:
 
 * CNNs handle visual classification
-* Gemini handles multimodal understanding
+* Gemini handles multimodal understanding (Image-to-Text Symptoms)
 * Groq handles reasoning and synthesis
 * ChromaDB handles factual grounding
 * Orchestrator handles coordination and observability
+* PostgreSQL handles state and history
 
-This creates a far more reliable and scalable AI architecture than relying on a single monolithic model.
+This creates a far more reliable, modular, and scalable AI architecture than relying on a single monolithic model.
 
 ---
-
-

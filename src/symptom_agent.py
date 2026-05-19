@@ -1,9 +1,12 @@
 # Symptom Agent: describes crop symptoms using Gemini
 import google.generativeai as genai
 from PIL import Image
-import os
 
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+from src.api_resilience import retry_external_api_call
+from src.config import settings
+from src.logger import logger
+
+genai.configure(api_key=settings.google_api_key)
 MODEL = "models/gemini-2.5-flash"
 
 model = genai.GenerativeModel(MODEL)
@@ -21,8 +24,8 @@ Return ONLY a detailed text description of the symptoms. Do NOT mention the dise
 """
     try:
         with Image.open(image_path) as img:
-            result = model.generate_content([prompt, img])
+            result = retry_external_api_call(model.generate_content, [prompt, img])
             return result.text.strip()
     except Exception as e:
-        print(f"Error in symptom agent: {e}")
+        logger.error("Error in symptom agent: %s", e, exc_info=True)
         return "Could not determine symptoms from the image."

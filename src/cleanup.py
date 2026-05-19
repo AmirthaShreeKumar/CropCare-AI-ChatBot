@@ -1,6 +1,7 @@
 import os
 import time
 import glob
+from src.logger import logger
 
 def cleanup_old_temp_files(directory=".", prefix="temp_", max_age_seconds=3600):
     """
@@ -20,11 +21,11 @@ def cleanup_old_temp_files(directory=".", prefix="temp_", max_age_seconds=3600):
                 os.remove(file_path)
                 count += 1
         except Exception as e:
-            print(f"Error deleting {file_path}: {e}")
+            logger.error("Error deleting %s: %s", file_path, e, exc_info=True)
             
     return count
 
 if __name__ == "__main__":
     # Manual trigger
     deleted = cleanup_old_temp_files()
-    print(f"Cleaned up {deleted} temporary files.")
+    logger.info("Cleaned up %d temporary files.", deleted)

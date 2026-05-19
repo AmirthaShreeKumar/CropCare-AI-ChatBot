@@ -1,4 +1,6 @@
 from src.factory import AIClientFactory
+from src.api_resilience import retry_external_api_call
+from src.logger import logger
 
 class HistorySummarizer:
     def __init__(self):
@@ -24,10 +26,10 @@ class HistorySummarizer:
         Summary:
         """
         try:
-            summary = self.llm.invoke(prompt).content.strip()
+            summary = retry_external_api_call(self.llm.invoke, prompt).content.strip()
             return summary
         except Exception as e:
-            print(f"Summarization error: {e}")
+            logger.error("Summarization error: %s", e, exc_info=True)
             return history_text[:2000] # Fallback to truncation
 
 

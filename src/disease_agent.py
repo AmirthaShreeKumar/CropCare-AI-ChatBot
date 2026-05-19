@@ -12,6 +12,8 @@ from src.schemas import DiseaseDiagnosis
 import os
 
 from src.factory import AIClientFactory
+from src.api_resilience import retry_external_api_call
+from src.logger import logger
 
 llm = AIClientFactory.get_llm()
 
@@ -61,7 +63,7 @@ Please analyze if the extracted symptoms (spots, margin discoloration, lesions, 
 Formulate a clear verification explanation, explaining the visual markers and their correlation.
 Set the final disease_name to exactly "{disease_name}".
 """
-            diagnosis = structured_llm.invoke(prompt)
+            diagnosis = retry_external_api_call(structured_llm.invoke, prompt)
 
             if diagnosis:
                 diagnosis.disease_name = disease_name
@@ -102,7 +104,7 @@ Symptoms: {symptoms}
 Diagnose ONLY from this PlantVillage list:
 {classes_list}
 """
-            diagnosis = structured_llm.invoke(prompt)
+            diagnosis = retry_external_api_call(structured_llm.invoke, prompt)
 
             if diagnosis and diagnosis.disease_name:
                 disease_name = diagnosis.disease_name
@@ -120,7 +122,7 @@ Diagnose ONLY from this PlantVillage list:
                 return diagnosis.dict()
 
     except Exception as e:
-        print(f"Disease diagnosis error: {e}")
+        logger.error("Disease diagnosis error: %s", e, exc_info=True)
 
     # Fallback: return basic diagnosis
     fallback_disease = cv_prediction["disease_name"] if cv_prediction else "Unknown"

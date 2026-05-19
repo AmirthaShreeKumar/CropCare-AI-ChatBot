@@ -11,10 +11,6 @@ class RateLimiter:
     def __init__(self, requests_limit=10, window_seconds=60):
         self.requests_limit = requests_limit
         self.window_seconds = window_seconds
-        
-        # Initialize session state for tracking if not present
-        if 'request_history' not in st.session_state:
-            st.session_state.request_history = deque()
 
     def is_allowed(self):
         """Check if the current user is allowed to make a request"""

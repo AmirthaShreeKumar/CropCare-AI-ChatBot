@@ -2,9 +2,11 @@
 
 from src.utils_json_parsing import safe_json_parse
 from src.disease_rag import get_treatment_for_disease, get_prevention_methods
+from src.api_resilience import retry_external_api_call
 import os
 from src.schemas import TreatmentPlan
 from src.factory import AIClientFactory
+from src.logger import logger
 
 llm = AIClientFactory.get_llm()
 
@@ -47,13 +49,13 @@ Consider:
 """
 
     try:
-        treatment_data = structured_llm.invoke(prompt)
+        treatment_data = retry_external_api_call(structured_llm.invoke, prompt)
 
         if treatment_data:
             return treatment_data.dict()
 
     except Exception as e:
-        print(f"Treatment recommendation error: {e}")
+        logger.error("Treatment recommendation error: %s", e, exc_info=True)
 
     # Fallback treatment
     return {

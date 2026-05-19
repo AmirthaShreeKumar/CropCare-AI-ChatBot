@@ -3,6 +3,7 @@
 
 from db import engine
 from sqlalchemy import text
+from src.logger import logger
 
 def init_db():
     with engine.begin() as conn:
@@ -15,10 +16,10 @@ def init_db():
 
         for statement in statements:
             if statement:
-                print(f"Executing: {statement[:50]}...")
+                logger.info("Executing schema statement: %s", statement[:50])
                 conn.execute(text(statement))
 
-        print("✅ Database schema created successfully!")
+        logger.info("✅ Database schema created successfully!")
 
 if __name__ == "__main__":
     init_db()

@@ -10,6 +10,7 @@ from src.regional_rag import (
 )
 from src.schemas import RegionalAdvice
 from src.factory import AIClientFactory
+from src.api_resilience import retry_external_api_call
 from src.logger import logger
 
 llm = AIClientFactory.get_llm()
@@ -65,9 +66,9 @@ def get_regional_advice(location, crop_name="", context=""):
     """
 
     try:
-        advice_data = structured_llm.invoke(prompt)
+        advice_data = retry_external_api_call(structured_llm.invoke, prompt)
         if advice_data:
-            logger.info(f"Successfully generated regional advice for {location}")
+            logger.info("Successfully generated regional advice for %s", location)
             return advice_data.dict()
     except Exception as e:
         logger.error(f"Regional advice error for {location}: {e}")
@@ -128,4 +129,4 @@ def get_location_based_disease_risks(location, crop_name):
         return f"Monitor common {crop_name} pests and diseases in {location} region"
     except Exception as e:
         logger.error(f"Error getting disease risks for {location}: {e}")
-        return "Consult local agricultural extension for pest/disease information"
+        return "Consult local agricultural extension for pest/disease information"

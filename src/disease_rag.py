@@ -6,11 +6,54 @@ Provides detailed disease information, treatments, and prevention methods
 from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 import os
+import hashlib
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Tuple
+from src.logger import logger
 
 # 🔥 Free embedding model
 embedding = HuggingFaceEmbeddings(
     model_name="all-MiniLM-L6-v2"
 )
+
+def _current_timestamp() -> str:
+    return datetime.utcnow().isoformat() + "Z"
+
+
+def _doc_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _document_metadata(source: str, knowledge_type: str, content: str) -> Dict[str, str]:
+    return {
+        "source": source,
+        "knowledge_type": knowledge_type,
+        "ingestion_timestamp": _current_timestamp(),
+        "doc_hash": _doc_hash(content),
+    }
+
+
+def _load_documents_from_directory(base_path: Path, knowledge_type: str) -> Tuple[List[str], List[Dict[str, str]]]:
+    documents: List[str] = []
+    metadatas: List[Dict[str, str]] = []
+    if not base_path.exists() or not base_path.is_dir():
+        return documents, metadatas
+
+    for pattern in ["*.md", "*.txt"]:
+        for file_path in sorted(base_path.glob(pattern)):
+            try:
+                raw_text = file_path.read_text(encoding="utf-8").strip()
+                if not raw_text:
+                    logger.warning("Skipping empty knowledge file: %s", file_path)
+                    continue
+                documents.append(raw_text)
+                metadatas.append(
+                    _document_metadata(file_path.name, knowledge_type, raw_text)
+                )
+            except Exception as exc:
+                logger.warning("Skipping corrupted knowledge file %s: %s", file_path, exc)
+    return documents, metadatas
 
 # 📦 Vector DB for disease knowledge
 disease_kb_path = "./disease_knowledge_base"
@@ -304,47 +347,57 @@ DISEASE_KNOWLEDGE = {
     """
 }
 
-def initialize_disease_kb():
-    """Initialize the disease knowledge base with curated data"""
-    print("🔄 Initializing Disease Knowledge Base...")
+def initialize_disease_kb(force: bool = False):
+    """Initialize the disease knowledge base with curated data."""
+    logger.info("🔄 Initializing Disease Knowledge Base...")
 
-    # Check if already initialized
-    try:
-        existing_docs = vectordb.similarity_search("test", k=1)
-        if existing_docs:
-            print("✅ Disease Knowledge Base already initialized")
-            return
-    except:
-        pass
+    base_path = Path(disease_kb_path)
+    base_path.mkdir(parents=True, exist_ok=True)
 
-    # Prepare documents for RAG
-    documents = []
-    metadatas = []
+    if not force:
+        try:
+            existing_docs = vectordb.similarity_search("test", k=1)
+            if existing_docs:
+                logger.info("✅ Disease Knowledge Base already initialized")
+                return
+        except Exception:
+            pass
 
-    for disease_name, content in DISEASE_KNOWLEDGE.items():
-        # Clean and prepare content
-        clean_content = content.strip()
+    documents, metadatas = _load_documents_from_directory(base_path, "disease_info")
 
-        # Extract key info for metadata
-        lines = clean_content.split('\n')
-        crops_affected = ""
-        for line in lines:
-            if line.startswith("Crops Affected:"):
-                crops_affected = line.replace("Crops Affected:", "").strip()
-                break
+    if not documents:
+        for disease_name, content in DISEASE_KNOWLEDGE.items():
+            clean_content = content.strip()
+            if not clean_content:
+                continue
 
-        documents.append(clean_content)
-        metadatas.append({
-            "disease": disease_name,
-            "crops": crops_affected,
-            "type": "disease_info"
-        })
+            lines = clean_content.split("\n")
+            crops_affected = ""
+            for line in lines:
+                if line.startswith("Crops Affected:"):
+                    crops_affected = line.replace("Crops Affected:", "").strip()
+                    break
 
-    # Add to vector database
+            documents.append(clean_content)
+            metadatas.append(
+                {
+                    "source": f"embedded:{disease_name}",
+                    "disease": disease_name,
+                    "crops": crops_affected,
+                    "type": "disease_info",
+                    "knowledge_type": "disease",
+                    "ingestion_timestamp": _current_timestamp(),
+                    "doc_hash": _doc_hash(clean_content),
+                }
+            )
+
     if documents:
+        logger.info("Adding %d disease documents to vector store", len(documents))
         vectordb.add_texts(documents, metadatas=metadatas)
         vectordb.persist()
-        print(f"✅ Added {len(documents)} disease entries to knowledge base")
+        logger.info("✅ Added %d disease entries to knowledge base", len(documents))
+    else:
+        logger.warning("No disease documents were available to index.")
 
 def get_disease_info(disease_name, k=1):
     """
@@ -361,7 +414,7 @@ def get_disease_info(disease_name, k=1):
         results = vectordb.similarity_search(disease_name, k=k)
         return [doc.page_content for doc in results]
     except Exception as e:
-        print(f"Error retrieving disease info: {e}")
+        logger.error("Error retrieving disease info: %s", e, exc_info=True)
         return []
 
 def search_disease_by_symptoms(symptoms_description, crop_name=None, k=3):
@@ -384,7 +437,7 @@ def search_disease_by_symptoms(symptoms_description, crop_name=None, k=3):
         results = vectordb.similarity_search(query, k=k)
         return [doc.page_content for doc in results]
     except Exception as e:
-        print(f"Error searching diseases: {e}")
+        logger.error("Error searching diseases: %s", e, exc_info=True)
         return []
 
 def get_treatment_for_disease(disease_name, k=2):
@@ -411,7 +464,7 @@ def get_treatment_for_disease(disease_name, k=2):
 
         return treatments if treatments else [results[0].page_content if results else ""]
     except Exception as e:
-        print(f"Error getting treatment: {e}")
+        logger.error("Error getting treatment: %s", e, exc_info=True)
         return []
 
 def get_prevention_methods(disease_name, k=1):
@@ -435,7 +488,7 @@ def get_prevention_methods(disease_name, k=1):
 
         return results[0].page_content if results else ""
     except Exception as e:
-        print(f"Error getting prevention: {e}")
+        logger.error("Error getting prevention: %s", e, exc_info=True)
         return ""
 
 def get_diseases_by_crop(crop_name, k=5):
@@ -462,7 +515,7 @@ def get_diseases_by_crop(crop_name, k=5):
 
         return crop_diseases
     except Exception as e:
-        print(f"Error getting diseases for crop: {e}")
+        logger.error("Error getting diseases for crop: %s", e, exc_info=True)
         return []
 
 def get_all_diseases():
@@ -479,7 +532,7 @@ def get_all_diseases():
 
         return sorted(list(diseases))
     except Exception as e:
-        print(f"Error getting disease list: {e}")
+        logger.error("Error getting disease list: %s", e, exc_info=True)
         return []
 
 # Initialize when module is imported

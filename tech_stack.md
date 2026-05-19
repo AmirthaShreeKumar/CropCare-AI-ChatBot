@@ -1,29 +1,57 @@
-# 🛠️ Tech Stack & Technologies Used
+# 🛠️ CropCare AI — Comprehensive Tech Stack & Technologies
 
-Below is a comprehensive breakdown of the core technologies powering **CropCare AI**, including exactly where they are used and why they were chosen for this production-grade architecture.
+Below is a complete, production-grade breakdown of the technologies, libraries, and frameworks powering **CropCare AI**, organized by system layers.
 
-### 🐍 Core Language & Frameworks
-* **[Python 3.11+]**: The backbone programming language used for the entire application, bridging machine learning, database management, and backend logic.
-* **[Streamlit]**: The frontend framework used to build the beautiful, interactive dashboard and chat interface without needing React or JavaScript.
+---
 
-### 👁️ Deep Learning & Perception
-* **[PyTorch]**: The deep learning framework that powers the local Computer Vision inference engine (`src/disease_classifier.py`).
-* **[MobileNetV2]**: The highly efficient Convolutional Neural Network (CNN) architecture used for instantly classifying 38 plant diseases on edge hardware without API latency.
+## 🐍 1. Core Platform & Web Layer
+* **[Python 3.11+]**: The fundamental programming platform powering backend orchestration, machine learning inference, RAG vector lookups, and security policies.
+* **[Streamlit]**: The core reactive frontend web framework. Provides an elegant, responsive UI dashboard, user forms, chat interfaces, and interactive sliders without the overhead of modern Javascript/React boilerplate.
+* **[Streamlit Mic Recorder & Audio Recorder]**: Streamlit extensions enabling users to capture live microphone audio directly in their browser for speech-to-text querying.
 
-### 🤖 Multimodal & Cognitive LLMs
-* **[Google Gemini Vision]**: The multimodal AI used in the Gatekeeper and Symptom Agents (`src/vision_agent.py`) because of its unparalleled ability to translate raw images into descriptive text.
-* **[Groq (Llama 3)]**: The ultra-fast LPU inference engine used for all cognitive reasoning agents (Disease, Treatment, Regional) because it provides instantaneous, sub-second text generation.
-* **[Whisper-Large-V3]**: The speech-to-text model hosted via Groq that instantly transcribes the user's multilingual voice recordings into text.
+---
 
-### 📚 Vector Search & Retrieval-Augmented Generation (RAG)
-* **[ChromaDB]**: The embedded vector database used in `disease_rag.py` and `regional_rag.py` to store and retrieve specific agricultural facts, preventing LLM hallucinations.
-* **[HuggingFace Embeddings (all-MiniLM-L6-v2)]**: The lightweight, free embedding model used to quickly convert text documents into vector numbers for ChromaDB.
+## 👁️ 2. Computer Vision & Perception Layer
+* **[PyTorch]**: The primary deep learning framework. Powers the local Computer Vision inference engine (`src/disease_classifier.py`).
+* **[Torchvision]**: Used to instantiate the highly-optimized **MobileNetV2** Convolutional Neural Network (CNN) architecture and load pre-trained weights for localized crop/disease diagnostics.
+* **[Pillow (PIL)]**: Handles low-level image processing, resizing, rotation normalization, and secure dimension validation.
 
-### 💾 Persistent Storage & Security
-* **[PostgreSQL]**: The robust relational database used to permanently and securely store user accounts and chat histories.
-* **[SQLAlchemy]**: The Object-Relational Mapper (ORM) used in `db.py` to securely manage database interactions and prevent SQL injection attacks.
-* **[Pydantic]**: The data validation framework used in `src/schemas.py` to force the LLMs to strictly output clean, structured JSON formats.
-* **[Bcrypt]**: The cryptographic hashing library used to safely encrypt user passwords before storing them in the database.
+---
 
-### 🐳 Deployment & DevOps
-* **[Docker]**: The containerization platform used (`Dockerfile`) to package the entire application and its dependencies into a single isolated unit for cloud deployment.
+## 🤖 3. Multimodal & Generative AI Stack
+* **[Google Gemini API]**: Used in the **Gatekeeper Agent** to perform visual content filtering and in the **Symptom Agent** (`src/symptom_agent.py`) to translate complex pixel patterns into structured symptom texts using `gemini-2.5-flash`.
+* **[Groq LPU Inference Engine]**: Powers all cognitive reasoning agents:
+  * **Llama-3.3-70b-versatile**: Drives the Pathfinder, Treatment, and Regional agents due to its ultra-low latency, sub-second text generation.
+  * **Whisper-Large-V3**: Used to run near-instantaneous transcription of multilingual voice recordings (English, Hindi, Tamil) into text.
+* **[gTTS (Google Text-To-Speech)]**: Generates natural-sounding MP3 speech streams from LLM response texts to provide accessible audio playback for farmers.
+
+---
+
+## 📚 4. Vector Search & Retrieval-Augmented Generation (RAG)
+* **[ChromaDB]**: The embedded high-performance vector database used to store and query the grounded facts (`src/disease_rag.py`) and microclimate adaptation protocols (`src/regional_rag.py`).
+* **[HuggingFace SentenceTransformers]**: Loads the `all-MiniLM-L6-v2` transformer model locally to compute dense 384-dimensional vector embeddings, preventing API-key dependencies for semantic lookups.
+* **[LangChain Core & Community]**: The standard AI framework used to manage structured prompt templates, manage LLM client configurations, and cleanly wrap ChromaDB vector stores.
+
+---
+
+## 🛡️ 5. Security, Validation & Input Safety Shield
+* **[Bcrypt]**: Cryptographic password hashing library. Used to salt and hash user passwords (`src/auth.py`) to ensure database security.
+* **[Pydantic v2]**: The standard data-validation library. Enforces structured JSON output from LLMs (`src/schemas.py`) and guarantees schema compliance.
+* **[Pydantic Settings]**: Eagerly loads, validates, and parses system configurations and API keys from `.env` at startup to prevent mid-runtime failures.
+* **[Tenacity]**: An advanced retry library used in `src/api_resilience.py` to handle transient network issues or API rate limits using **Exponential Backoff and Jitter**.
+* **[python-magic]**: Reads file headers (magic bytes) to ensure uploaded image/audio files are authentic, preventing extension-spoofing attacks.
+
+---
+
+## 🗄️ 6. Storage & Database Management
+* **[PostgreSQL]**: The robust, production-grade relational database management system. Safely persists user accounts, isolated chat sessions, and historical logs.
+* **[SQLAlchemy Engine & ORM]**: Python's premium database SQL toolkit. Provides secure parameterized query building in `db.py` to prevent SQL injection vulnerabilities.
+* **[psycopg2-binary]**: High-performance PostgreSQL database adapter for Python.
+
+---
+
+## 🐳 7. DevOps, Orchestration & Deployment
+* **[Docker]**: The containerization tool used to compile the application runtime, dependencies, and local model weights into an isolated, lightweight layer.
+* **[Docker Compose]**: The multi-container orchestration system used to deploy the complete local infrastructure with isolated networks:
+  * **`web` container**: Streamlit dashboard, Multi-agent pipeline, and Local CNN classifier.
+  * **`db` container**: Isolated PostgreSQL database using the official lightweight `postgres:15-alpine` image with volume persistence.

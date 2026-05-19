@@ -1,18 +1,10 @@
-from urllib.parse import quote_plus
-
 from sqlalchemy import create_engine, text
-import os
 import bcrypt
 
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = quote_plus(os.getenv("DB_PASSWORD", "Amirtha@134")) 
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME", "cropcare")
+from src.config import settings
+from src.logger import logger
 
-engine = create_engine(
-    f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-)
+engine = create_engine(settings.resolved_database_url)
 
 def init_db():
     """Initialize the database tables if they don't exist"""
@@ -22,9 +14,11 @@ def init_db():
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(50) UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
+                role VARCHAR(20) NOT NULL DEFAULT 'user',
                 created_at TIMESTAMP DEFAULT NOW()
             )
         """))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user'"))
         # Create chats table with user_id linkage
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS chats (
@@ -50,9 +44,9 @@ def init_db():
         """))
 
 def save_message(chat_id, role, content, audio_content=None):
-    print("🔥 SAVING:", chat_id, role, content)  # DEBUG
+    logger.info("Saving message for chat_id=%s role=%s", chat_id, role)
 
-    with engine.begin() as conn:  # ✅ THIS IS THE FIX
+    with engine.begin() as conn:
         conn.execute(
             text("INSERT INTO messages (chat_id, role, content, audio_content) VALUES (:c, :r, :t, :a)"),
             {"c": chat_id, "r": role, "t": content, "a": audio_content}
@@ -125,7 +119,7 @@ def update_chat_title(chat_id, title):
             {"t": title, "c": chat_id}
         )
 
-def create_user(username, password):
+def create_user(username, password, role='user'):
     """Hash password and create a new user"""
     salt = bcrypt.gensalt()
     pwd_hash = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
@@ -133,8 +127,11 @@ def create_user(username, password):
     try:
         with engine.begin() as conn:
             conn.execute(
-                text("INSERT INTO users (username, password_hash) VALUES (:u, :p)"),
-                {"u": username, "p": pwd_hash}
+                text(
+                    "INSERT INTO users (username, password_hash, role) "
+                    "VALUES (:u, :p, :r)"
+                ),
+                {"u": username, "p": pwd_hash, "r": role}
             )
             
             # If this is the first user, migrate all orphaned chats to them
@@ -145,25 +142,23 @@ def create_user(username, password):
             """))
         return True
     except Exception as e:
-        print(f"Error creating user: {e}")
+        logger.error("Error creating user: %s", e, exc_info=True)
         return False
 
 def authenticate_user(username, password):
-    """Verify username and password and return user_id"""
+    """Verify username and password and return authenticated user info."""
     with engine.begin() as conn:
         result = conn.execute(
-            text("SELECT id, password_hash FROM users WHERE username = :u"),
+            text("SELECT id, password_hash, role FROM users WHERE username = :u"),
             {"u": username}
         )
         row = result.fetchone()
         if row:
-            user_id, stored_hash = row[0], row[1].encode('utf-8')
+            user_id, stored_hash, role = row[0], row[1].encode('utf-8'), row[2]
             if bcrypt.checkpw(password.encode('utf-8'), stored_hash):
-                # Only migrate chats to THIS user if they are currently orphaned
-                # This helps transition anonymous sessions to the logged-in account
                 conn.execute(
                     text("UPDATE chats SET user_id = :uid WHERE user_id IS NULL"),
                     {"uid": user_id}
                 )
-                return user_id
+                return {"id": user_id, "role": role}
     return None
