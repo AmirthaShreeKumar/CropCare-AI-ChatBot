@@ -7,6 +7,7 @@ ENV PYTHONUNBUFFERED=1 \
     STREAMLIT_SERVER_PORT=8501 \
     STREAMLIT_SERVER_HEADLESS=true \
     STREAMLIT_SERVER_ENABLE_CORS=false \
+    STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false \
     STREAMLIT_SERVER_MAX_UPLOAD_SIZE=10
 
 # Set working directory inside the container
@@ -21,7 +22,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy the requirements file and install python packages
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu && rm -rf /root/.cache/pip
+
+# Pre-download and cache the Hugging Face embedding model to make container startup instant
+RUN python -c "from langchain_huggingface import HuggingFaceEmbeddings; HuggingFaceEmbeddings(model_name='all-MiniLM-L6-v2')"
+
 
 # Copy the entire project code into the container
 COPY . .
