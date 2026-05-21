@@ -25,4 +25,8 @@ jobs:
         run: |
           python -c "import streamlit, sqlalchemy, langchain, chromadb"
       - name: Run pytest
-        run: pytest -vv --cov=src
+  env:
+    GOOGLE_API_KEY: dummy_key
+    GROQ_API_KEY: dummy_key
+    APP_SECRET: dummy_secret
+  run: pytest -vv --cov=src
