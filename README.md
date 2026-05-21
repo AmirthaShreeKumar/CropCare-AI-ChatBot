@@ -1,5 +1,12 @@
 # 🌱 CropCare AI — Hybrid Multimodal Agricultural Intelligence Platform
 
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![Streamlit](https://img.shields.io/badge/Frontend-Streamlit-red)
+![Docker](https://img.shields.io/badge/Deployment-Docker-blue)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-316192)
+![CI](https://github.com/AmirthaShreeKumar/CropCare-AI-ChatBot/actions/workflows/ci.yml/badge.svg)
+![Tests](https://img.shields.io/badge/Tests-Pytest-success)
+
 CropCare AI is a production-grade Hybrid AI System that combines Computer Vision, Multi-Agent LLM Reasoning, and Retrieval-Augmented Generation (RAG) to provide intelligent crop disease diagnosis, agronomist-level reasoning, and localized agricultural guidance.
 
 Unlike traditional AI chatbots that rely solely on Large Language Models, CropCare AI utilizes a highly decoupled, multi-layer architecture that separates:
@@ -391,6 +398,30 @@ streamlit run app.py
 | Singleton AI Client Management   | ✅      |
 | Confidence-Aware Pipeline        | ✅      |
 
+---
+
+# ✅ Testing & CI/CD
+
+CropCare AI includes lightweight automated testing and continuous integration workflows.
+
+### Current Testing Coverage
+
+- Authentication validation tests
+- Database CRUD operation tests
+- Prompt injection detection tests
+- Agent routing tests
+- Smoke import verification
+
+### CI/CD Pipeline
+
+GitHub Actions automatically:
+
+- installs dependencies
+- validates imports
+- runs pytest suite
+- checks project stability on every push and pull request
+
+This helps ensure reproducibility and prevents dependency or integration regressions.
 ---
 
 # 🔍 Logging & Observability
