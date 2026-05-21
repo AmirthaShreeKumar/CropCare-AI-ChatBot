@@ -36,4 +36,9 @@ jobs:
           GOOGLE_API_KEY: dummy_key
           GROQ_API_KEY: dummy_key
           APP_SECRET: dummy_secret
-        run: pytest -vv --cov=src
+
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: testdb
