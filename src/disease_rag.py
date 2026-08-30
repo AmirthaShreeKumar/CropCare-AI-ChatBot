@@ -3,7 +3,7 @@ Disease Knowledge Base RAG System
 Provides detailed disease information, treatments, and prevention methods
 """
 
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 import os
 import hashlib
@@ -58,6 +58,34 @@ def _load_documents_from_directory(base_path: Path, knowledge_type: str) -> Tupl
 # 📦 Vector DB for disease knowledge
 disease_kb_path = "./disease_knowledge_base"
 os.makedirs(disease_kb_path, exist_ok=True)
+
+# Validate database compatibility before initializing Chroma to prevent locking issues
+def _validate_and_cleanup_db(db_path: str):
+    import sqlite3
+    import json
+    import shutil
+    sqlite_file = os.path.join(db_path, "chroma.sqlite3")
+    if not os.path.exists(sqlite_file):
+        return
+    try:
+        conn = sqlite3.connect(sqlite_file)
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='collections'")
+        if cur.fetchone():
+            cur.execute("SELECT config_json_str FROM collections")
+            for row in cur.fetchall():
+                if row[0]:
+                    config = json.loads(row[0])
+                    if "_type" not in config:
+                        conn.close()
+                        logger.warning("Incompatible Chroma database at %s. Deleting...", db_path)
+                        shutil.rmtree(db_path, ignore_errors=True)
+                        return
+        conn.close()
+    except Exception as e:
+        logger.warning("Error checking Chroma DB compatibility at %s: %s", db_path, e)
+
+_validate_and_cleanup_db(disease_kb_path)
 
 vectordb = Chroma(
     persist_directory=disease_kb_path,
@@ -394,7 +422,8 @@ def initialize_disease_kb(force: bool = False):
     if documents:
         logger.info("Adding %d disease documents to vector store", len(documents))
         vectordb.add_texts(documents, metadatas=metadatas)
-        vectordb.persist()
+        if hasattr(vectordb, "persist"):
+            vectordb.persist()
         logger.info("✅ Added %d disease entries to knowledge base", len(documents))
     else:
         logger.warning("No disease documents were available to index.")

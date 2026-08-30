@@ -43,7 +43,7 @@ cleanup_old_temp_files()
 
 from src.factory import AIClientFactory
 
-llm = AIClientFactory.get_llm(model_name="llama-3.3-70b-versatile")
+llm = AIClientFactory.get_llm(model_name="openai/gpt-oss-120b")
 groq_client = AIClientFactory.get_groq_client()
 
 

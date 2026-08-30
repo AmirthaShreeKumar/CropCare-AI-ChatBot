@@ -21,7 +21,8 @@ Below is a complete, production-grade breakdown of the technologies, libraries, 
 ## 🤖 3. Multimodal & Generative AI Stack
 * **[Google Gemini API]**: Used in the **Gatekeeper Agent** to perform visual content filtering and in the **Symptom Agent** (`src/symptom_agent.py`) to translate complex pixel patterns into structured symptom texts using `gemini-2.5-flash`.
 * **[Groq LPU Inference Engine]**: Powers all cognitive reasoning agents:
-  * **Llama-3.3-70b-versatile**: Drives the Pathfinder, Treatment, and Regional agents due to its ultra-low latency, sub-second text generation.
+  * **openai/gpt-oss-120b**: Drives the Pathfinder, Treatment, and Regional agents due to its high capability and ultra-low latency.
+  * **openai/gpt-oss-20b**: Powers lightweight auxiliary tasks (autocorrect, safety gatekeeping, history summarization).
   * **Whisper-Large-V3**: Used to run near-instantaneous transcription of multilingual voice recordings (English, Hindi, Tamil) into text.
 * **[gTTS (Google Text-To-Speech)]**: Generates natural-sounding MP3 speech streams from LLM response texts to provide accessible audio playback for farmers.
 
@@ -55,3 +56,10 @@ Below is a complete, production-grade breakdown of the technologies, libraries, 
 * **[Docker Compose]**: The multi-container orchestration system used to deploy the complete local infrastructure with isolated networks:
   * **`web` container**: Streamlit dashboard, Multi-agent pipeline, and Local CNN classifier.
   * **`db` container**: Isolated PostgreSQL database using the official lightweight `postgres:15-alpine` image with volume persistence.
+  
+
+## ✅ 8. Testing, Reliability & Continuous Integration
+* **[Pytest]**: Used for lightweight automated unit testing of authentication logic, database CRUD operations, prompt-injection detection, and agent-routing validation.
+* **[GitHub Actions]**: Implements Continuous Integration (CI) pipelines that automatically install dependencies, validate imports, and execute the test suite on every push or pull request.
+* **[Pytest-Cov]**: Provides basic code coverage analysis during CI execution to verify critical modules are being tested.
+* **[Smoke Testing]**: CI workflows perform import verification of critical frameworks (Streamlit, SQLAlchemy, LangChain, ChromaDB) to detect dependency or environment breakages early.

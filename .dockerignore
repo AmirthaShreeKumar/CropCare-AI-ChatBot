@@ -12,3 +12,8 @@ logs/
 scratch/
 development_scripts/
 .gemini/
+disease_knowledge_base/
+regional_knowledge_base/
+chat_memory/
+chroma/
+chroma_backup/

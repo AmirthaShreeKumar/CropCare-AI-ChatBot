@@ -8,7 +8,7 @@ class AIClientFactory:
     _instances = {}
 
     @classmethod
-    def get_llm(cls, model_name="llama-3.1-8b-instant", temperature=0):
+    def get_llm(cls, model_name="openai/gpt-oss-20b", temperature=0):
         key = f"llm_{model_name}_{temperature}"
         if key not in cls._instances:
             cls._instances[key] = ChatGroq(

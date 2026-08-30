@@ -42,6 +42,7 @@ def init_db():
                 created_at TIMESTAMP DEFAULT NOW()
             )
         """))
+        conn.execute(text("ALTER TABLE messages ADD COLUMN IF NOT EXISTS audio_content TEXT"))
 
 def save_message(chat_id, role, content, audio_content=None):
     logger.info("Saving message for chat_id=%s role=%s", chat_id, role)

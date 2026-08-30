@@ -4,7 +4,7 @@ import os
 
 class SafetyInterceptor:
     def __init__(self):
-        self.llm = AIClientFactory.get_llm(model_name="llama-3.1-8b-instant", temperature=0)
+        self.llm = AIClientFactory.get_llm(model_name="openai/gpt-oss-20b", temperature=0)
         self.keywords = [
             "crop", "plant", "leaf", "farm", "agriculture", "soil", "pest", "disease",
             "fertilizer", "harvest", "seed", "irrigation", "weather", "seasonal",

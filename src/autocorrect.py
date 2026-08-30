@@ -3,7 +3,7 @@ from src.api_resilience import retry_external_api_call
 from src.logger import logger
 import streamlit as st
 
-llm = AIClientFactory.get_llm(model_name="llama-3.1-8b-instant", temperature=0)
+llm = AIClientFactory.get_llm(model_name="openai/gpt-oss-20b", temperature=0)
 
 @st.cache_data(show_spinner=False)
 def autocorrect_and_normalize_query(query: str, preferred_language: str) -> str:
